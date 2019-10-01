@@ -5,7 +5,7 @@ POT = alarmclock/locales/messages.pot
 LOCALE = alarmclock/locales/de/LC_MESSAGES/messages.po
 
 run: .venv3 $(LOCALE:.po=.mo)
-	PYTHONPATH=$(PWD)/../snipsclient $(BIN)/python3 action-domi-Wecker.py
+	PYTHONPATH=$(PWD)/../snipsclient $(BIN)/python3 action-domi-Wecker.py -v3
 
 .venv3: requirements.txt
 	[ -d $@ ] || python3 -m venv $@
@@ -14,7 +14,7 @@ run: .venv3 $(LOCALE:.po=.mo)
 
 messages: $(POT)
 
-$(POT): alarmclock/alarmclock.py alarmclock/alarm.py alarmclock/translation.py
+$(POT): action-domi-Wecker.py alarmclock/alarmclock.py alarmclock/alarm.py alarmclock/translation.py
 	$(GETTEXT)/bin/xgettext -L python -o $@ $^
 
 %.mo: %.po

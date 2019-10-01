@@ -63,7 +63,6 @@ ROOM_PREPOSITIONS_DE = {
 }
 
 
-
 def spoken_time( alarm_time):
     if alarm_time.hour == 1: hour = "ein"
     else: hour = alarm_time.hour

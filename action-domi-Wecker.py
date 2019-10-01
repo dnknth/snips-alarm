@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from alarmclock.alarmclock import AlarmClock
+from alarmclock.translation import _
 import json
 import logging
 import paho.mqtt.client as mqtt
@@ -11,6 +12,16 @@ import toml
 PREFIX = "domi:"
 
 
+# Map verbosity argument choices to log levels
+LOG_LEVELS = {
+    0: logging.ERROR,
+    1: logging.WARNING,
+    2: logging.INFO,
+    3: logging.DEBUG,
+}
+
+
+# logging.basicConfig( level=logging.DEBUG)
 mqtt_client = Client()
 alarmclock = AlarmClock( mqtt_client)
 
@@ -62,20 +73,32 @@ def delete_alarms_try( client, userdata, msg):
 @mqtt_client.on_intent( PREFIX + 'confirmAlarm')
 def delete_alarms( client, userdata, msg):
     custom_data = json.loads( msg.payload['customData'])
+    print( custom_data)
     if custom_data and 'past_intent' in custom_data.keys():
         slots = get_slots( msg.payload)
         # FIXME L10N
-        if slots.get('answer') == "yes" and \
+        if slots.get('answer') == _("yes") and \
                 custom_data['past_intent'] == PREFIX + 'deleteAlarms':
             client.end_session( msg.payload['sessionId'], 
                 alarmclock.delete_alarms( custom_data['slots'], custom_data['siteId']))
         else:
             client.end_session( msg.payload['sessionId'])
-        del alarmclock.alarmctl.temp_memory[msg.payload['siteId']]
+        
+        if msg.payload['siteId'] in alarmclock.alarmctl.temp_memory:
+            del alarmclock.alarmctl.temp_memory[msg.payload['siteId']]
 
 
 if __name__ == '__main__':
+    from argparse import ArgumentParser
+    
     logging.basicConfig()
-    mqtt_client.log.setLevel( logging.DEBUG)
-    alarmclock.alarmctl.log.setLevel( logging.DEBUG)
+    
+    parser = ArgumentParser()    
+    parser.add_argument( '-v', '--verbosity',
+        type=int, choices=[0, 1, 2, 3], default=1,
+        help='verbosity level; 0=errors only, 1=normal output, 2=verbose output, 3=debug output')
+    options = parser.parse_args()
+    
+    mqtt_client.log.setLevel( LOG_LEVELS[ options.verbosity])
+    alarmclock.alarmctl.log.setLevel( LOG_LEVELS[ options.verbosity])
     mqtt_client.run()

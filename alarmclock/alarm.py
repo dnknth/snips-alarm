@@ -7,15 +7,13 @@ import threading
 import time
 from pydub import AudioSegment
 from . translation import _, spoken_time
-import uuid
 import wave
 
 
 def edit_volume( wav_path, volume):
     ringtone = AudioSegment.from_wav(wav_path)
     ringtone -= ringtone.max_dBFS
-    calc_volume = (100 - (volume * 0.8 + 20)) * 0.6
-    ringtone -= calc_volume
+    ringtone -= (100 - (volume * 0.8 + 20)) * 0.6
 
     with wave.open( ".temporary_ringtone", 'wb') as wave_data:
         wave_data.setnchannels( ringtone.channels)
@@ -48,11 +46,11 @@ class Alarm:
     
     FORMAT = "%Y-%m-%d %H:%M"
     
-    def __init__( self, datetime=None, site=None, repetition=None, missed=False):
+    def __init__( self, datetime=None, site=None, missed=False, **kwargs):
         if type( datetime) is str:
             self.datetime = dt.strptime( datetime, self.FORMAT)
         else: self.datetime = datetime
-        self.repetition = repetition
+        
         self.site = site
         self.missed = missed
         self.passed = False
@@ -65,9 +63,8 @@ class Alarm:
 
     def as_dict( self):
         return { 'datetime': dt.strftime( self.datetime, self.FORMAT),
-                 'site': self.site.siteid, # HACK alert
-                 'repetition': self.repetition,
-                 'missed': self.missed}
+                 'site': self.site.siteid, # FIXME ugly hack
+                 'missed': self.missed }
 
 
 class AlarmControl:
@@ -92,12 +89,12 @@ class AlarmControl:
             self.log.debug( 'Added: %s', self.sites[siteid])
 
         self.alarms = set()
-        if config['restore_alarms']:
-            with io.open( self.SAVED_ALARMS_PATH, "r") as f:
-                for alarm_dict in json.load( f):
-                    alarm_dict['site'] = self.sites[ alarm_dict['site']]
-                    alarm = Alarm( **alarm_dict)
-                    alarm.missed = ( alarm.datetime - dt.now()).days < 0
+        with io.open( self.SAVED_ALARMS_PATH, "r") as f:
+            for alarm_dict in json.load( f):
+                alarm_dict['site'] = self.sites[ alarm_dict['site']]
+                alarm = Alarm( **alarm_dict)
+                alarm.missed = ( alarm.datetime - dt.now()).days < 0
+                if not alarm.missed:
                     self.alarms.add( alarm)
                     self.log.debug( 'Restored: %s', alarm)
         self.save()
@@ -115,7 +112,6 @@ class AlarmControl:
 
 
     def clock( self):
-
         """
         Checks in a loop if the current time and date matches with one of the alarm dictionary.
         :return: Nothing
@@ -123,24 +119,24 @@ class AlarmControl:
 
         while True:
             now = dt.now()
-            now_time = dt( now.year, now.month, now.day, now.hour, now.minute)
-            if now_time in [alarm.datetime for alarm in self.get_alarms()]:
-                pending_alarms = [alarm for alarm in self.get_alarms(now_time) if not alarm.passed]
+            now = dt( now.year, now.month, now.day, now.hour, now.minute)
+            if now in [alarm.datetime for alarm in self.get_alarms()]:
+                pending_alarms = [alarm for alarm in self.get_alarms( now) if not alarm.passed]
                 for alarm in pending_alarms:
                     alarm.passed = True
-                    self.start_ringing( alarm, now_time)
+                    self.start_ringing( alarm, now)
             time.sleep(3)
 
 
-    def start_ringing( self, alarm, now_time):
+    def start_ringing( self, alarm, now):
         site = alarm.site
         if site.ringtone_status:
-            self.temp_memory[site.siteid] = { 'alarm': now_time }
+            self.temp_memory[site.siteid] = { 'alarm': now }
             topic = 'hermes/audioServer/{siteId}/playFinished'.format( siteId=site.siteid)
             self.log.debug( "Adding callback for: %s", topic)
             self.mqtt_client.subscribe( [( topic, 1) ])
             self.mqtt_client.message_callback_add( topic, self.on_message_playfinished)
-            self.log.debug( "Ringing on %s", site)
+            self.log.info( "Ringing on %s", site)
             self.ring( site)
             site.ringing_alarm = alarm
             site.timeout_thread = threading.Timer(
@@ -149,19 +145,16 @@ class AlarmControl:
 
 
     def ring( self, site):
-
         """
         Play the ringtone over MQTT on the sound server.
         :param site: The site object (site of the user)
         :return: Nothing
         """
 
-        site.ringtone_id = str( uuid.uuid4())
-        self.mqtt_client.play_sound( site.siteid, site.ringtone_wav, request_id=site.ringtone_id)
+        site.ringtone_id = self.mqtt_client.play_sound( site.siteid, site.ringtone_wav)
 
 
     def stop_ringing( self, site):
-
         """
         Sets self.ringing_dict[siteId] to False so on_message_playfinished won't start a new ring.
         :param site: The site object (site of the user)
@@ -169,7 +162,7 @@ class AlarmControl:
         """
 
         # TODO: delete alarm after captcha or snooze or sth
-        self.log.debug( "Stop ringing on %s", site)
+        self.log.info( "Stop ringing on %s", site)
         site.ringing_alarm = None
         site.ringtone_id = None
         site.timeout_thread.cancel()  # cancel timeout thread from siteId
@@ -185,7 +178,6 @@ class AlarmControl:
 
 
     def on_message_playfinished( self, client, userdata, msg):
-
         """
         Called when ringtone was played on specific site. If self.ringing_dict[siteId] is True, the
         ringtone is played again.
@@ -203,7 +195,6 @@ class AlarmControl:
 
 
     def on_message_hotword( self, client, userdata, msg):
-
         """
         Called when hotword is recognized while alarm is ringing. If siteId matches the one of the
         current ringing alarm, it is stopped.
@@ -225,7 +216,6 @@ class AlarmControl:
 
 
     def on_message_sessionstarted( self, client, userdata, msg):
-
         """
         Called when Snips started a new session. Publishes a message to end this immediately and Snips
         will notify the user that the alarm has ended.
@@ -276,7 +266,6 @@ class AlarmControl:
 
 
     def get_alarms( self, dtobject=None, siteid=None, only_ringing=False, missed=False):
-        
         alarms = filter( lambda a: a.missed == missed, self.alarms)
         if only_ringing: alarms = filter( lambda a: a.ringing, alarms)
         if dtobject:     alarms = filter( lambda a: a.datetime == dtobject, alarms)

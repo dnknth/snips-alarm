@@ -158,23 +158,16 @@ class AlarmClock:
 
         alarm_count = len(alarms)
         if alarm_count == 0:
-            response = _("There no alarm is {room_part} {future_part} {time_part}.")
+            response = _("There is no alarm {room_part} {future_part} {time_part}.")
             
         else:
             response = ngettext( 
-                "There is one alarm {room_part} {future_part} {time_part}.",
-                "There are {num_part} alarms {room_part} {future_part} {time_part}.", alarm_count)
+                "There is one alarm {room_part} {future_part} {time_part}",
+                "There are {num_part} alarms {room_part} {future_part} {time_part}", alarm_count)
         
-        response = response.format( num_part=alarm_count,
-            room_part=words_dict['room_part'],
-            future_part=words_dict['future_part'],
-            time_part=words_dict['time_part'])
-
-        if alarm_count > 5:
-            response += _(" The next five are: ")
-            alarms = alarms[:5]
-
-        return response + self.add_alarms_part( siteid, alarms, words_dict, alarm_count)
+        response = response.format( num_part=alarm_count, **words_dict).strip()
+        if alarm_count > 5: response += _('. The next five are:')
+        return response + ' ' + self.add_alarms_part( siteid, alarms[:5], words_dict, alarm_count)
 
 
     def get_next_alarm( self, slots, siteid):
@@ -204,24 +197,19 @@ class AlarmClock:
         error, alarms, words_dict = self.filter_alarms(
             self.alarmctl.get_alarms( missed=True), slots, siteid, timeslot_with_past=True)
         if error: return error
+        self.alarmctl.delete_alarms( alarms)
 
         alarm_count = len(alarms)
         if alarm_count == 0:
-            response = _("You missed no alarm {room_part} {future_part} {time_part}")
+            response = _("You missed no alarm {room_part} {future_part} {time_part}.")
         else:
             response = ngettext(
                 "You missed one alarm {room_part} {future_part} {time_part}",
-                "You missed {num} alarms {room_part} {future_part} {time_part}.")
-        
-        response = response.format( num=alarm_count,
-                room_part=words_dict['room_part'],
-                future_part=words_dict['future_part'],
-                time_part=words_dict['time_part'])
-                
+                "You missed {num} alarms {room_part} {future_part} {time_part}")
+                        
         # sort from old to new (say oldest alarms first)
-        response += self.add_alarms_part( siteid, reversed( alarms), words_dict, alarm_count)
-        self.alarmctl.delete_alarms( alarms)
-        return response
+        return response.format( num=alarm_count, **words_dict).strip() + ' ' + \
+            self.add_alarms_part( siteid, reversed( alarms), words_dict, alarm_count)
 
 
     def add_alarms_part( self, siteid, alarms, words_dict, alarm_count):
@@ -243,8 +231,8 @@ class AlarmClock:
                 room_part = self.get_roomstr( [
                     alarm.site.siteid for alarm in
                     self.alarmctl.get_alarms(alarm.datetime)], siteid)
-                
-            response += _("{future_part} {time_part} {room_part}").format( locals())        
+                    
+            response += _("{future_part} {time_part} {room_part}").format( **locals())
             response += ", " if alarm.datetime != alarms[-1].datetime else "."
             if alarm_count > 1 and alarm.datetime == alarms[-2].datetime:
                 response += _(" and ")
@@ -393,8 +381,7 @@ class AlarmClock:
             alarms = filter( lambda a: a.get_siteid() == context_siteid, alarms)
             room_part = self.get_roomstr([context_siteid], siteid)
             
-        alarms = sorted( alarms, key=lambda alarm: alarm.datetime)
-        return "", alarms, {
+        return "", sorted( alarms, key=lambda alarm: alarm.datetime), {
             'future_part': future_part,
             'time_part': time_part,
             'room_part': room_part
