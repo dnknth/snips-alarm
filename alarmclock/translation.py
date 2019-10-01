@@ -10,6 +10,16 @@ _ = TRANSLATION.gettext
 ngettext = TRANSLATION.ngettext
 
 
+TIME_LOCALES = {
+    'de': arrow.locales.DeutschBaseLocale,
+    'en': arrow.locales.EnglishLocale,
+    'es': arrow.locales.SpanishLocale,
+    'fr': arrow.locales.FrenchLocale,
+    'it': arrow.locales.ItalianLocale,
+    'jp': arrow.locales.JapaneseLocale,
+}
+
+
 ROOM_PREPOSITIONS = {
     # Map translated room names to room names with prepositions
     # for languages that use genders for room names
@@ -25,46 +35,40 @@ ROOM_PREPOSITIONS = {
 # Remove captitalization in keys
 ROOM_PREPOSITIONS = { k.lower(): v for k, v in ROOM_PREPOSITIONS.items() }
 
-# This may be wrong for arbitrary rooms e.g. "on the terrace"
+# FIXME This may be wrong for arbitrary rooms, e.g. "on the terrace"
 DEFAULT_PREPOSITION = _("in the {room}")
 
 
 def preposition( room):
+    "Add an 'in' preposition to a room name"
     return ROOM_PREPOSITIONS.get( room.lower(),
         DEFAULT_PREPOSITION.format( room=room))
 
 
-def spoken_time( alarm_time):
+def spoken_time( time):
+    "Read the time"
     
     hour = ngettext( "one o'clock", "{hour} o'clock",
-        alarm_time.hour).format( hour=alarm_time.hour)
+        time.hour).format( hour=time.hour)
     minute = ngettext( '{min} minute', '{min} minutes',
-        alarm_time.minute).format( min=alarm_time.minute)
+        time.minute).format( min=time.minute)
     
     # gap correction in sentence
-    if alarm_time.minute == 0: return hour
+    if time.minute == 0: return hour
     return _("{minute} past {hour}").format( **locals())
 
 
-TIME_LOCALES = {
-    'de': arrow.locales.DeutschBaseLocale,
-    'en': arrow.locales.EnglishLocale,
-    # 'es': arrow.locales.SpanishLocale,
-    'fr': arrow.locales.FrenchLocale,
-    'it': arrow.locales.ItalianLocale,
-    'ja': arrow.locales.JapaneseLocale,
-}
-
-TIME_LOCALE = TIME_LOCALES[ LANGUAGE]
-
-def humanize( alarm_time, only_days=False):
+def humanize( time, only_days=False):
+    "Describe the time spam until a given time in understandable words"
+    
     now = datetime.datetime.now()
     now = datetime.datetime( now.year, now.month, now.day, now.hour, now.minute)
     
-    delta_days = (alarm_time - now).days
-    delta_hours = (alarm_time - now).seconds // 3600
+    delta_days = (time - now).days
+    delta_hours = (time - now).seconds // 3600
+    
     if (delta_days == 0 or delta_hours <= 12) and not only_days:
-        delta_minutes = ((alarm_time - now).seconds % 3600) // 60
+        delta_minutes = ((time - now).seconds % 3600) // 60
         
         hour_words = ngettext( "in one hour", "in {hours} hours", delta_hours).format(
             hours=delta_hours)
@@ -82,22 +86,22 @@ def humanize( alarm_time, only_days=False):
     if delta_days == 0: return _("today")
     if delta_days == 1: return _("tomorrow")
     if delta_days == 2: return _("the day after tomorrow")
-    if delta_days == -1 and alarm_time.date() == now.date():
-        delta_hours = (now - alarm_time).seconds // 3600
+    if delta_days == -1 and time.date() == now.date():
+        delta_hours = (now - time).seconds // 3600
         return _("{hours} hours ago").format( hours=delta_hours)
-    if delta_days == -1 and (alarm_time.date() - now.date()).days == -1:
+    if delta_days == -1 and (time.date() - now.date()).days == -1:
         return _("yesterday")
     if delta_days <= -2: return _("{day_offset} days ago").format( day_offset=delta_days)
     
-    alarm_weekday = TIME_LOCALE.day_names[alarm_time.weekday()]
+    alarm_weekday = TIME_LOCALES[ LANGUAGE].day_names[time.weekday()]
     if 3 <= delta_days <= 6: return _("on {weekday}").format( weekday=alarm_weekday)
     if delta_days == 7: return _("on {weekday} next week").format( weekday=alarm_weekday)
 
     return _("in {day_offset} days, on {weekday}, the {day}. {month}.").format( 
                 day_offset=delta_days,
                 weekday=alarm_weekday,
-                day=alarm_time.day,
-                month=DeutschBaseLocale.month_names[alarm_time.month])
+                day=time.day,
+                month=TIME_LOCALES[ LANGUAGE].month_names[time.month])
 
 
 def get_interval_part( from_time, to_time):
