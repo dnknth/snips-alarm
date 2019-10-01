@@ -96,7 +96,7 @@ def humanize( alarm_time, only_days=False):
         if delta_hours > 0 and minutes_remain == 0: return hour_words
         if delta_hours > 0 and minutes_remain > 0:
             return _("{hours} and {minutes} minutes").format(
-                hours_part=hour_words,
+                hours=hour_words,
                 minutes=minute_words)
         return _("in {minutes}").format(minutes=minute_words)
         

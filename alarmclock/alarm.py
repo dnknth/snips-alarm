@@ -1,10 +1,13 @@
 import io
 import json
 from datetime import datetime as dt
+import functools
+import logging
 import threading
 import time
-import functools                     # functools.partial for threading.Timeout callback with parameter
-from pydub import AudioSegment       # change volume of ringtone
+from pydub import AudioSegment
+from . translation import _, spoken_time
+import uuid
 import wave
 
 
@@ -15,13 +18,13 @@ def edit_volume( wav_path, volume):
     ringtone -= calc_volume
 
     with wave.open( ".temporary_ringtone", 'wb') as wave_data:
-        wave_data.setnchannels(ringtone.channels)
-        wave_data.setsampwidth(ringtone.sample_width)
-        wave_data.setframerate(ringtone.frame_rate)
-        wave_data.setnframes(int(ringtone.frame_count()))
-        wave_data.writeframesraw(ringtone._data)
+        wave_data.setnchannels( ringtone.channels)
+        wave_data.setsampwidth( ringtone.sample_width)
+        wave_data.setframerate( ringtone.frame_rate)
+        wave_data.setnframes( int( ringtone.frame_count()))
+        wave_data.writeframesraw( ringtone._data)
 
-    with open(".temporary_ringtone", "rb") as f: return f.read()
+    with open( ".temporary_ringtone", "rb") as f: return f.read()
 
 
 class Site:
@@ -36,6 +39,9 @@ class Site:
         self.ringtone_id = None
         self.timeout_thread = None
         self.session_pending = False
+        
+    def __str__( self):
+        return "<Site '%s' in '%s'>" % (self.siteid, self.room)
 
 
 class Alarm:
@@ -52,6 +58,11 @@ class Alarm:
         self.passed = False
         self.ringing = False
 
+
+    def __str__( self):
+        return "<Alarm on '%s' at %s>" % (self.site.siteid, self.datetime)
+
+
     def as_dict( self):
         return { 'datetime': dt.strftime( self.datetime, self.FORMAT),
                  'site': self.site.siteid, # HACK alert
@@ -62,38 +73,45 @@ class Alarm:
 class AlarmControl:
     
     SAVED_ALARMS_PATH = ".saved_alarms.json"
+    RING_TONE = "resources/alarm-sound.wav"
+
     
     def __init__( self, config, mqtt_client):
         self.config = config
         self.mqtt_client = mqtt_client
-        self.sites_dict = {}
         self.temp_memory = {}
+        self.log = logging.getLogger( self.__class__.__name__)
 
+        self.sites = {}
         for room, siteid in config['dict_siteids'].items():
             ringing_volume = self.config['ringing_volume'][siteid]
-            self.sites_dict[siteid] = Site( siteid, room,
-                self.config['ringtone_status'][siteid],
-                self.config['ringing_timeout'][siteid],
-                edit_volume("alarm-sound.wav", ringing_volume))
+            self.sites[siteid] = Site( siteid, room,
+                self.config[ 'ringtone_status'][siteid],
+                self.config[ 'ringing_timeout'][siteid],
+                edit_volume( self.RING_TONE, ringing_volume))
+            self.log.debug( 'Added: %s', self.sites[siteid])
 
         self.alarms = set()
         if config['restore_alarms']:
             with io.open( self.SAVED_ALARMS_PATH, "r") as f:
-                for alarm in json.load( f):
-                    alarm['site'] = self.sites_dict[ alarm['site']]
-                    self.alarms.add( Alarm( **alarm))
-            self.check_set_missed()
+                for alarm_dict in json.load( f):
+                    alarm_dict['site'] = self.sites[ alarm_dict['site']]
+                    alarm = Alarm( **alarm_dict)
+                    alarm.missed = ( alarm.datetime - dt.now()).days < 0
+                    self.alarms.add( alarm)
+                    self.log.debug( 'Restored: %s', alarm)
         self.save()
         
-        self.clock_thread = threading.Thread( target=self.clock)
+        self.clock_thread = threading.Thread( target=self.clock, daemon=True)
         self.clock_thread.start()
 
-        self.mqtt_client.topic( 'hermes/hotword/#')( self.on_message_hotword)
         self.mqtt_client.subscribe( [
-            ('hermes/dialogueManager/#', 0),
-            ('hermes/hotword/#', 0),
-            ('hermes/audioServer/#', 0) ])
+            ('hermes/dialogueManager/sessionStarted', 1),
+            ('hermes/hotword/#', 1) ])
+            # ('hermes/audioServer/+/playFinished', 1)
         self.mqtt_client.on_session_ended( self.on_session_ended)
+        self.mqtt_client.topic(
+            'hermes/hotword/+/detected', json=True)( self.on_message_hotword)
 
 
     def clock( self):
@@ -118,9 +136,11 @@ class AlarmControl:
         site = alarm.site
         if site.ringtone_status:
             self.temp_memory[site.siteid] = { 'alarm': now_time }
-            self.mqtt_client.message_callback_add(
-                'hermes/audioServer/{siteId}/playFinished'.format(
-                    siteId=site.siteid), self.on_message_playfinished)
+            topic = 'hermes/audioServer/{siteId}/playFinished'.format( siteId=site.siteid)
+            self.log.debug( "Adding callback for: %s", topic)
+            self.mqtt_client.subscribe( [( topic, 1) ])
+            self.mqtt_client.message_callback_add( topic, self.on_message_playfinished)
+            self.log.debug( "Ringing on %s", site)
             self.ring( site)
             site.ringing_alarm = alarm
             site.timeout_thread = threading.Timer(
@@ -136,7 +156,8 @@ class AlarmControl:
         :return: Nothing
         """
 
-        self.mqtt_client.play_sound( site.siteid, site.ringtone_wav)
+        site.ringtone_id = str( uuid.uuid4())
+        self.mqtt_client.play_sound( site.siteid, site.ringtone_wav, request_id=site.ringtone_id)
 
 
     def stop_ringing( self, site):
@@ -148,15 +169,17 @@ class AlarmControl:
         """
 
         # TODO: delete alarm after captcha or snooze or sth
+        self.log.debug( "Stop ringing on %s", site)
         site.ringing_alarm = None
         site.ringtone_id = None
         site.timeout_thread.cancel()  # cancel timeout thread from siteId
         site.timeout_thread = None
-        self.mqtt_client.message_callback_remove( 'hermes/audioServer/{site_id}/playFinished'.format(
-            site_id=site.siteid))
+        self.mqtt_client.message_callback_remove(
+            'hermes/audioServer/{site_id}/playFinished'.format( site_id=site.siteid))
 
 
     def timeout_reached( self, site):
+        self.log.debug( "Timeout on %s", site)
         site.ringing_alarm.missed = True
         self.stop_ringing( site)
 
@@ -172,8 +195,9 @@ class AlarmControl:
         :return: Nothing
         """
 
-        payload = json.loads(msg.payload.decode())
-        site = self.sites_dict[ payload['siteId']]
+        self.log.debug( 'Received message: %s', msg.topic)
+        payload = json.loads( msg.payload.decode())
+        site = self.sites[ payload['siteId']]
         if site.ringing_alarm and site.ringtone_id == payload['id']:
             self.ring(site)
 
@@ -189,8 +213,10 @@ class AlarmControl:
         :return: Nothing
         """
 
-        payload = json.loads(msg.payload.decode())
-        site = self.sites_dict[ payload['siteId']]
+        site_id = msg.payload[ 'siteId']
+        if site_id not in self.sites: return
+        
+        site = self.sites[ site_id]
         if site.ringing_alarm:
             self.stop_ringing(site)
             site.session_pending = True  # TODO
@@ -209,56 +235,44 @@ class AlarmControl:
         :return: Nothing
         """
 
-        payload = json.loads(msg.payload.decode())
-        site_id = payload['siteId']
-        
-        # self.mqtt_client.publish('hermes/asr/toggleOn')
-        if not self.config['snooze_config']['state'] and self.sites_dict[ site_id].session_pending:
-            self.sites_dict[ site_id].session_pending = False
-            self.mqtt_client.message_callback_remove('hermes/dialogueManager/sessionStarted')
-            now_time = dt.now()
-            text = self.translation.get("Alarm is now ended.") + " " + self.translation.get("It's {h}:{min} .", {
-                'h': ftime.get_alarm_hour(now_time), 'min': ftime.get_alarm_minute(now_time)})
-            self.mqtt_client.publish('hermes/dialogueManager/endSession',
-                                     json.dumps({"text": text, "sessionId": payload['sessionId']}))
+        self.log.debug( 'Received message: %s', msg.topic)
+        payload = json.loads( msg.payload.decode())
+        site_id = payload[ 'siteId']
 
-        elif self.config['snooze_config']['state'] and self.sites_dict[ site_id].session_pending:
-            self.sites_dict[ site_id].session_pending = False
-            self.mqtt_client.message_callback_remove('hermes/dialogueManager/sessionStarted')
-            self.mqtt_client.publish('hermes/dialogueManager/endSession',
-                                     json.dumps({"sessionId": payload['sessionId']}))
-            # self.mqtt_client.subscribe('hermes/nlu/intentNotRecognized')
-            # self.mqtt_client.message_callback_add('hermes/nlu/intentNotRecognized', self.on_message_nlu_error)
-            self.mqtt_client.publish('hermes/dialogueManager/startSession',
-                                     json.dumps({'siteId': site_id,
-                                                 'init': {'type': "action", 'text': "Was soll der Alarm tun?",
-                                                          'canBeEnqueued': True,
-                                                          'intentFilter': ["domi:answerAlarm"]}}))
+        if site_id not in self.sites or not self.sites[ site_id].session_pending: return
+        self.sites[ site_id].session_pending = False
+        self.mqtt_client.message_callback_remove('hermes/dialogueManager/sessionStarted')
+        
+        if self.config['snooze_config']['state']:
+            self.mqtt_client.end_session( payload['sessionId'])
+            self.mqtt_client.start_session( site_id,
+                self.mqtt_client.action_init(
+                    _("What should the alarm do?"), ["domi:answerAlarm"] ))
+
+        else:
+            self.mqtt_client.end_session( payload['sessionId'],
+                _("Alarm is now ended. It is {time}.").format(
+                    time=spoken_time( dt.now())))
 
 
     def on_session_ended( self, client, userdata, msg):
+        'Clean the past intent memory if the session was ended during confirmation'
         
-        payload = json.loads(msg.payload.decode())
-        site_id = payload['siteId']
-        
-        if self.temp_memory[ site_id] and payload['termination']['reason'] != "nominal":
-            # if session was ended while confirmation process clean the past intent memory
+        site_id = msg.payload[ 'siteId']
+        if site_id in self.temp_memory and msg.payload['termination']['reason'] != "nominal":
             del self.temp_memory[ site_id]
         
 
-    def add( self, alarmobj):
-        self.alarms.add( alarmobj)
+    def add( self, alarm):
+        self.alarms.add( alarm)
+        self.log.debug( 'Added: %s', alarm)
         self.save()
 
 
     def save( self):
         with io.open( self.SAVED_ALARMS_PATH, "w") as f:
             f.write(json.dumps( [ alarm.as_dict() for alarm in self.alarms ]))
-
-
-    def check_set_missed( self):
-        for alarm in self.alarms:
-            alarm.missed = ( alarm.datetime - dt.now()).days < 0
+        self.log.debug( 'Saved %d alarms', len( self.alarms))
 
 
     def get_alarms( self, dtobject=None, siteid=None, only_ringing=False, missed=False):
@@ -272,4 +286,5 @@ class AlarmControl:
 
     def delete_alarms( self, alarms):
         self.alarms -= set( alarms)
+        self.log.debug( 'Deleted %d alarms', len( alarms))
         self.save()

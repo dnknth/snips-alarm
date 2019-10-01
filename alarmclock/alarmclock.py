@@ -78,7 +78,6 @@ class AlarmClock:
     
     def __init__( self, mqtt_client):
         self.config = get_config()
-        self.remembered_slots = {}
         self.alarmctl = AlarmControl( self.config, mqtt_client)
 
 
@@ -106,7 +105,7 @@ class AlarmClock:
         default_room = self.config['default_room']
         sites = self.config['dict_siteids']
 
-        if len( self.alarmctl.sites_dict) > 1:
+        if len( self.alarmctl.sites) > 1:
             if 'room' in slots:
                 room_slot = slots['room']
                 if room_slot == _("here"):
@@ -144,7 +143,7 @@ class AlarmClock:
             return concat( _("This alarm would ring now."),
                            _("Please set another alarm."))
 
-        alarm = Alarm( alarm_time, self.alarmctl.sites_dict[alarm_site_id])
+        alarm = Alarm( alarm_time, self.alarmctl.sites[alarm_site_id])
         self.alarmctl.add( alarm)
         
         return _("The alarm will ring {room_part} {future_part} at {time}.").format(
@@ -219,8 +218,8 @@ class AlarmClock:
                 future_part=words_dict['future_part'],
                 time_part=words_dict['time_part'])
                 
-        alarms = alarms.sorted( reverse=True)  # sort from old to new (say oldest alarms first)
-        response += self.add_alarms_part( siteid, alarms, words_dict, alarm_count)
+        # sort from old to new (say oldest alarms first)
+        response += self.add_alarms_part( siteid, reversed( alarms), words_dict, alarm_count)
         self.alarmctl.delete_alarms( alarms)
         return response
 
@@ -313,8 +312,7 @@ class AlarmClock:
 
 
     def answer_alarm( self, slots, siteid):
-        # TODO: self.config[snooze_config] = {state: on, default_duration: 9, min_duration: 2, max_duration: 10,
-        #                                     challenge: on}
+        # TODO: self.config[snooze_config] = {state: on, default_duration: 9, min_duration: 2, max_duration: 10, challenge: on}
 
         if not slots: return _("I'm afraid I did not understand you.")
 
@@ -325,7 +323,7 @@ class AlarmClock:
         else:
             duration = self.config['snooze_config']['default_duration']
         dtobj_next = self.alarmctl.temp_memory[siteid] + datetime.timedelta(minutes=duration)
-        next_alarm = Alarm(dtobj_next, self.alarmctl.sites_dict[siteid])
+        next_alarm = Alarm(dtobj_next, self.alarmctl.sites[siteid])
 
         answer_slot = slots['answer'] if 'answer' in slots else None
 
@@ -381,6 +379,7 @@ class AlarmClock:
         if 'room' in slots:
             sites = self.config['dict_siteids']
             room_slot = slots['room']
+            
             if room_slot == _("here"):
                 if siteid not in sites.values():
                     return _("This room has not been configured yet."), [], {}
@@ -404,12 +403,12 @@ class AlarmClock:
 
     def get_roomstr( self, siteids, siteid):
         room_str = ""
-        if len( self.alarmctl.sites_dict) > 1:
+        if len( self.alarmctl.sites) > 1:
             for iter_siteid in siteids:
                 if iter_siteid == siteid:
                     room_str += _("here")
                 else:
-                    room_str += preposition( self.alarmctl.sites_dict[iter_siteid].room)
+                    room_str += preposition( self.alarmctl.sites[iter_siteid].room)
 
                 if len(siteids) > 1:
                     if iter_siteid == siteids[-2]: room_str += _(" and ")
