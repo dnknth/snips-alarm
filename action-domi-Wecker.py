@@ -44,7 +44,8 @@ def on( intent, handler):
         client.end_session( msg.payload['sessionId'], 
             handler( get_slots( msg.payload), msg.payload['siteId']))
 
-    mqtt_client.on_intent( PREFIX + intent)( wrapper)
+    mqtt_client.on_intent( PREFIX + intent)(
+        mqtt_client.debug_json( 'slots', 'siteId')( wrapper))
 
 
 on( 'newAlarm', alarmclock.new_alarm)
@@ -55,6 +56,7 @@ on( 'answerAlarm', alarmclock.answer_alarm)
 
 
 @mqtt_client.on_intent( PREFIX + 'deleteAlarms')
+@mqtt_client.debug_json( 'slots', 'siteId')
 def delete_alarms_try( client, userdata, msg):
     # delete alarms with the given properties
     slots = get_slots( msg.payload)
@@ -63,26 +65,25 @@ def delete_alarms_try( client, userdata, msg):
     if not alarms:
         return client.end_session( msg.payload['sessionId'], response)
 
-    client.continue_session( msg.payload['sessionId'], response,
-        [PREFIX + 'confirmAlarm'], custom_data={
-            'past_intent': PREFIX + 'deleteAlarms',
-            'siteId': msg.payload['siteId'],
-            'slots': slots})
+    client.continue_session(
+        msg.payload['sessionId'],
+        response,
+        [PREFIX + 'confirmAlarm'],
+        custom_data=[ a.uuid for a in alarms ])
 
 
 @mqtt_client.on_intent( PREFIX + 'confirmAlarm')
+@mqtt_client.debug_json( 'customData', 'siteId')
 def delete_alarms( client, userdata, msg):
-    custom_data = json.loads( msg.payload['customData'])
-    print( custom_data)
-    if custom_data and 'past_intent' in custom_data.keys():
+    uuids = json.loads( msg.payload['customData'])
+    if uuids:
         slots = get_slots( msg.payload)
-        # FIXME L10N
-        if slots.get('answer') == _("yes") and \
-                custom_data['past_intent'] == PREFIX + 'deleteAlarms':
-            client.end_session( msg.payload['sessionId'], 
-                alarmclock.delete_alarms( custom_data['slots'], custom_data['siteId']))
-        else:
+        if slots.get('answer') != _("yes"):
             client.end_session( msg.payload['sessionId'])
+            
+            alarmclock.alarmctl.delete_alarms(
+                filter( lambda a: a.uuid in uuids, alarmclock.alarmctl.get_alarms()))
+            client.end_session( msg.payload['sessionId'], _("Done."))
         
         if msg.payload['siteId'] in alarmclock.alarmctl.temp_memory:
             del alarmclock.alarmctl.temp_memory[msg.payload['siteId']]

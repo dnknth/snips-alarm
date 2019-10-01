@@ -288,17 +288,6 @@ class AlarmClock:
                             num=alarm_count)
 
 
-    def delete_alarms( self, slots, siteid):
-
-        """
-        Removes all alarms in the list "alarms_delete".
-        :return: String "Done."
-        """
-        rc, alarms, words_dict = self.filter_alarms( self.alarmctl.get_alarms(), slots, siteid)
-        self.alarmctl.delete_alarms( alarms)
-        return _("Done.")
-
-
     def answer_alarm( self, slots, siteid):
         # TODO: self.config[snooze_config] = {state: on, default_duration: 9, min_duration: 2, max_duration: 10, challenge: on}
 
@@ -331,8 +320,8 @@ class AlarmClock:
 
         if 'time' in slots:
             if slots['time']['kind'] == "InstantTime":
-                alarm_time = parse(slots['time']['value'])
-                future_part = humanize(alarm_time, only_days=True)
+                alarm_time = parse( slots['time']['value'])
+                future_part = humanize( alarm_time, only_days=True)
                 
                 if slots['time']['grain'] == "Hour" or slots['time']['grain'] == "Minute":
                     if not timeslot_with_past and (alarm_time - get_now_time()).days < 0:
@@ -378,7 +367,7 @@ class AlarmClock:
                     return _("The room {room} has not been configured yet.").format( room=room_slot), [], {}
                 context_siteid = sites[room_slot]
                     
-            alarms = filter( lambda a: a.get_siteid() == context_siteid, alarms)
+            alarms = filter( lambda a: a.site.siteid == context_siteid, alarms)
             room_part = self.get_roomstr([context_siteid], siteid)
             
         return "", sorted( alarms, key=lambda alarm: alarm.datetime), {

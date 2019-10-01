@@ -7,6 +7,7 @@ import threading
 import time
 from pydub import AudioSegment
 from . translation import _, spoken_time
+from uuid import uuid4
 import wave
 
 
@@ -46,7 +47,7 @@ class Alarm:
     
     FORMAT = "%Y-%m-%d %H:%M"
     
-    def __init__( self, datetime=None, site=None, missed=False, **kwargs):
+    def __init__( self, uuid=None, datetime=None, site=None, missed=False, **kwargs):
         if type( datetime) is str:
             self.datetime = dt.strptime( datetime, self.FORMAT)
         else: self.datetime = datetime
@@ -55,6 +56,7 @@ class Alarm:
         self.missed = missed
         self.passed = False
         self.ringing = False
+        self.uuid = uuid or str( uuid4())
 
 
     def __str__( self):
@@ -64,7 +66,8 @@ class Alarm:
     def as_dict( self):
         return { 'datetime': dt.strftime( self.datetime, self.FORMAT),
                  'site': self.site.siteid, # FIXME ugly hack
-                 'missed': self.missed }
+                 'missed': self.missed,
+                 'uuid': self.uuid }
 
 
 class AlarmControl:
@@ -274,6 +277,7 @@ class AlarmControl:
 
 
     def delete_alarms( self, alarms):
-        self.alarms -= set( alarms)
+        alarms = set( alarms)
+        self.alarms -= alarms
         self.log.debug( 'Deleted %d alarms', len( alarms))
         self.save()

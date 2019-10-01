@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import datetime, gettext, os
-from arrow.locales import DeutschBaseLocale
+import arrow.locales
 
 
 LANGUAGE = "de"
@@ -10,69 +10,52 @@ _ = TRANSLATION.gettext
 ngettext = TRANSLATION.ngettext
 
 
-WEEKDAYS = (
-    _("monday"),   _("tuesday"), _("wednesday"),
-    _("thursday"), _("friday"),  _("saturday"),
-    _("sunday") )
+ROOM_PREPOSITIONS = {
+    # Map translated room names to room names with prepositions
+    # for languages that use genders for room names
+    _("office"):      _("in the office"),
+    _("dining room"): _("in the dining room"),
+    _("bathroom"):    _("in the bathroom"),
+    _("kid's room"):  _("in the kid's room"),
+    _("livingroom"):  _("in the livingroom"),
+    _("bedroom"):     _("in the bedroom"),
+    _("kitchen"):     _("in the kitchen"),
+}
+
+# Remove captitalization in keys
+ROOM_PREPOSITIONS = { k.lower(): v for k, v in ROOM_PREPOSITIONS.items() }
+
+# This may be wrong for arbitrary rooms e.g. "on the terrace"
+DEFAULT_PREPOSITION = _("in the {room}")
 
 
 def preposition( room):
-    return ROOM_PREPOSITIONS_DE.get( room, "") + " " + room
-
-
-ROOM_PREPOSITIONS_DE = {
-    "Wartezimmer":      "im",
-    "Eingang":          "im",
-    "Gang":             "im",
-    "Spielzimmer":      "im",
-    "Garten":           "im",
-    "Atrium":           "im",
-    "Foyer":            "im",
-    "Vestibül":         "im",
-    "Büro":             "im",
-    "Atelier":          "im",
-    "Wintergarten":     "im",
-    "Leitstand":        "im",
-    "Konferenzraum":    "im",
-    "Kesselhaus":       "im",
-    "Umkleideraum":     "im",
-    "Esszimmer":        "im",
-    "Monteurzimmer":    "im",
-    "Keller":           "im",
-    "Arbeitszimmer":    "im",
-    "Badezimmer":       "im",
-    "Kinderzimmer":     "im",
-    "Wohnzimmer":       "im",
-    "Schlafzimmer":     "im",
-
-    "Sauna":            "in der",
-    "Toilette":         "in der",
-    "Abstellkammer":    "in der",
-    "Garage":           "in der",
-    "Waschküche":       "in der",
-    "Galerie":          "in der",
-    "Aula":             "in der",
-    "Cella":            "in der",
-    "Kommandozentrale": "in der",
-    "Speisekammer":     "in der",
-    "Wartehalle":       "in der",
-    "Küche":            "in der",
-
-    "Dachboden":        "auf dem",
-    "Balkon":           "auf dem",
-}
+    return ROOM_PREPOSITIONS.get( room.lower(),
+        DEFAULT_PREPOSITION.format( room=room))
 
 
 def spoken_time( alarm_time):
-    if alarm_time.hour == 1: hour = "ein"
-    else: hour = alarm_time.hour
     
-    if alarm_time.minute == 0: min = "" # gap correction in sentence
-    elif alarm_time.minute == 1: min = "eins"
-    else: min = alarm_time.minute
+    hour = ngettext( "one o'clock", "{hour} o'clock",
+        alarm_time.hour).format( hour=alarm_time.hour)
+    minute = ngettext( '{min} minute', '{min} minutes',
+        alarm_time.minute).format( min=alarm_time.minute)
     
-    return _("{min} minutes past {hour}").format( **locals())
+    # gap correction in sentence
+    if alarm_time.minute == 0: return hour
+    return _("{minute} past {hour}").format( **locals())
 
+
+TIME_LOCALES = {
+    'de': arrow.locales.DeutschBaseLocale,
+    'en': arrow.locales.EnglishLocale,
+    # 'es': arrow.locales.SpanishLocale,
+    'fr': arrow.locales.FrenchLocale,
+    'it': arrow.locales.ItalianLocale,
+    'ja': arrow.locales.JapaneseLocale,
+}
+
+TIME_LOCALE = TIME_LOCALES[ LANGUAGE]
 
 def humanize( alarm_time, only_days=False):
     now = datetime.datetime.now()
@@ -81,23 +64,20 @@ def humanize( alarm_time, only_days=False):
     delta_days = (alarm_time - now).days
     delta_hours = (alarm_time - now).seconds // 3600
     if (delta_days == 0 or delta_hours <= 12) and not only_days:
-        minutes_remain = ((alarm_time - now).seconds % 3600) // 60
-        if delta_hours == 1:  # for word fix in German
-            hour_words = _("in one hour")
-        else:
-            hour_words = _("in {hours} hours").format( hours=delta_hours)
+        delta_minutes = ((alarm_time - now).seconds % 3600) // 60
+        
+        hour_words = ngettext( "in one hour", "in {hours} hours", delta_hours).format(
+            hours=delta_hours)
             
-        if minutes_remain == 1:
-            minute_words = _("one minute")
-        else:
-            minute_words = _("{minutes} minutes").format( minutes=minutes_remain)
-            
-        if delta_hours > 0 and minutes_remain == 0: return hour_words
-        if delta_hours > 0 and minutes_remain > 0:
-            return _("{hours} and {minutes} minutes").format(
-                hours=hour_words,
-                minutes=minute_words)
-        return _("in {minutes}").format(minutes=minute_words)
+        minute_words = ngettext( "one minute", "{minutes} minutes", delta_minutes).format(
+            minutes=delta_minutes)
+        
+        if not delta_hours and not delta_minutes: return _('now')
+        if not delta_minutes: return hour_words
+        if not delta_hours: return _("in {minutes}").format(minutes=minute_words)
+        return _("{hours} and {minutes} minutes").format(
+            hours=hour_words,
+            minutes=minute_words)
         
     if delta_days == 0: return _("today")
     if delta_days == 1: return _("tomorrow")
@@ -109,7 +89,7 @@ def humanize( alarm_time, only_days=False):
         return _("yesterday")
     if delta_days <= -2: return _("{day_offset} days ago").format( day_offset=delta_days)
     
-    alarm_weekday = DeutschBaseLocale.day_names[alarm_time.weekday()]
+    alarm_weekday = TIME_LOCALE.day_names[alarm_time.weekday()]
     if 3 <= delta_days <= 6: return _("on {weekday}").format( weekday=alarm_weekday)
     if delta_days == 7: return _("on {weekday} next week").format( weekday=alarm_weekday)
 
