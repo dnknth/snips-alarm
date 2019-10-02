@@ -163,7 +163,8 @@ class AlarmClock:
         else:
             response = ngettext( 
                 "There is one alarm {room_part} {future_part} {time_part}",
-                "There are {num_part} alarms {room_part} {future_part} {time_part}", alarm_count)
+                "There are {num_part} alarms {room_part} {future_part} {time_part}",
+                alarm_count)
         
         response = response.format( num_part=alarm_count, **words_dict).strip()
         if alarm_count > 5: response += _('. The next five are:')
@@ -205,7 +206,8 @@ class AlarmClock:
         else:
             response = ngettext(
                 "You missed one alarm {room_part} {future_part} {time_part}",
-                "You missed {num} alarms {room_part} {future_part} {time_part}")
+                "You missed {num} alarms {room_part} {future_part} {time_part}",
+                alarm_count)
                         
         # sort from old to new (say oldest alarms first)
         return response.format( num=alarm_count, **words_dict).strip() + ' ' + \
@@ -214,6 +216,7 @@ class AlarmClock:
 
     def add_alarms_part( self, siteid, alarms, words_dict, alarm_count):
         response = " "
+        alarms = list( alarms) # iterators cannot be sliced
         for alarm in alarms:
 
             # If room and/or time not said in speech command, the alarms were not filtered with that.

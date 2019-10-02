@@ -39,7 +39,7 @@ class Site:
         self.timeout_thread = None
         self.session_pending = False
         
-    def __str__( self):
+    def __repr__( self):
         return "<Site '%s' in '%s'>" % (self.siteid, self.room)
 
 
@@ -47,7 +47,7 @@ class Alarm:
     
     FORMAT = "%Y-%m-%d %H:%M"
     
-    def __init__( self, uuid=None, datetime=None, site=None, missed=False, **kwargs):
+    def __init__( self, datetime=None, site=None, missed=False, uuid=None, **kwargs):
         if type( datetime) is str:
             self.datetime = dt.strptime( datetime, self.FORMAT)
         else: self.datetime = datetime
@@ -59,7 +59,7 @@ class Alarm:
         self.uuid = uuid or str( uuid4())
 
 
-    def __str__( self):
+    def __repr__( self):
         return "<Alarm on '%s' at %s>" % (self.site.siteid, self.datetime)
 
 
@@ -110,8 +110,7 @@ class AlarmControl:
             ('hermes/hotword/#', 1) ])
             # ('hermes/audioServer/+/playFinished', 1)
         self.mqtt_client.on_session_ended( self.on_session_ended)
-        self.mqtt_client.topic(
-            'hermes/hotword/+/detected', json=True)( self.on_message_hotword)
+        self.mqtt_client.topic( 'hermes/hotword/+/detected')( self.on_message_hotword)
 
 
     def clock( self):
@@ -207,7 +206,8 @@ class AlarmControl:
         :return: Nothing
         """
 
-        site_id = msg.payload[ 'siteId']
+        payload = json.loads( msg.payload.decode())
+        site_id = payload[ 'siteId']
         if site_id not in self.sites: return
         
         site = self.sites[ site_id]

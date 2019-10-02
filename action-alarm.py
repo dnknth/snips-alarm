@@ -30,6 +30,7 @@ def get_slots( payload):
     'Extract names / values from slots'
     slots = {}
     for slot in payload['slots']:
+        print( slot)
         if slot['value']['kind'] in ("InstantTime", "TimeInterval", "Duration"):
             slots[ slot['slotName']] = slot['value']
         elif slot['value']['kind'] == "Custom":

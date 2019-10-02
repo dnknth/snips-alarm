@@ -1,11 +1,14 @@
-# -*- coding: utf-8 -*-
-import datetime, gettext, os
+from datetime import datetime
+import gettext, os
 import arrow.locales
 
 
 LANGUAGE = "de"
-LOCALES = os.path.join( os.path.dirname( __file__), 'locales')
-TRANSLATION = gettext.translation( 'messages', localedir=LOCALES, languages=[LANGUAGE])
+TRANSLATION = gettext.translation( 'messages', languages=[LANGUAGE],
+    localedir=os.path.join( os.path.dirname( __file__), 'locales'))
+
+
+# Install translation functions
 _ = TRANSLATION.gettext
 ngettext = TRANSLATION.ngettext
 
@@ -61,27 +64,24 @@ def spoken_time( time):
 def humanize( time, only_days=False):
     "Describe the time spam until a given time in understandable words"
     
-    now = datetime.datetime.now()
-    now = datetime.datetime( now.year, now.month, now.day, now.hour, now.minute)
+    now = datetime.now()
+    now = datetime( now.year, now.month, now.day, now.hour, now.minute)
     
-    delta_days = (time - now).days
-    delta_hours = (time - now).seconds // 3600
+    delta_days    = (time - now).days
+    delta_hours   = (time - now).seconds // 3600
+    delta_minutes = ((time - now).seconds % 3600) // 60
     
     if (delta_days == 0 or delta_hours <= 12) and not only_days:
-        delta_minutes = ((time - now).seconds % 3600) // 60
-        
-        hour_words = ngettext( "in one hour", "in {hours} hours", delta_hours).format(
+        hours = ngettext( "in one hour", "in {hours} hours", delta_hours).format(
             hours=delta_hours)
-            
-        minute_words = ngettext( "one minute", "{minutes} minutes", delta_minutes).format(
+        minutes = ngettext( "one minute", "{minutes} minutes", delta_minutes).format(
             minutes=delta_minutes)
         
         if not delta_hours and not delta_minutes: return _('now')
-        if not delta_minutes: return hour_words
-        if not delta_hours: return _("in {minutes}").format(minutes=minute_words)
+        if not delta_minutes: return hours
+        if not delta_hours: return _("in {minutes}").format( minutes=minutes)
         return _("{hours} and {minutes} minutes").format(
-            hours=hour_words,
-            minutes=minute_words)
+            hours=hours, minutes=minutes)
         
     if delta_days == 0: return _("today")
     if delta_days == 1: return _("tomorrow")
@@ -93,14 +93,12 @@ def humanize( time, only_days=False):
         return _("yesterday")
     if delta_days <= -2: return _("{day_offset} days ago").format( day_offset=delta_days)
     
-    alarm_weekday = TIME_LOCALES[ LANGUAGE].day_names[time.weekday()]
+    alarm_weekday = TIME_LOCALES[ LANGUAGE].day_names[ time.weekday()]
     if 3 <= delta_days <= 6: return _("on {weekday}").format( weekday=alarm_weekday)
     if delta_days == 7: return _("on {weekday} next week").format( weekday=alarm_weekday)
 
-    return _("in {day_offset} days, on {weekday}, the {day}. {month}.").format( 
-                day_offset=delta_days,
-                weekday=alarm_weekday,
-                day=time.day,
+    return _("in {day_offset} days, on {weekday}, the {day}. {month}.").format(
+                day_offset=delta_days, weekday=alarm_weekday, day=time.day,
                 month=TIME_LOCALES[ LANGUAGE].month_names[time.month])
 
 
