@@ -61,11 +61,15 @@ def spoken_time( time):
     return _("{minute} past {hour}").format( **locals())
 
 
+def get_now_time():
+    dt = datetime.now()
+    return datetime( dt.year, dt.month, dt.day, dt.hour, dt.minute)
+    
+
 def humanize( time, only_days=False):
     "Describe the time spam until a given time in understandable words"
     
-    now = datetime.now()
-    now = datetime( now.year, now.month, now.day, now.hour, now.minute)
+    now = get_now_time()
     
     delta_days    = (time - now).days
     delta_hours   = (time - now).seconds // 3600

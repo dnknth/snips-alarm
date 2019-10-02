@@ -30,8 +30,7 @@ def get_slots( payload):
     'Extract names / values from slots'
     slots = {}
     for slot in payload['slots']:
-        print( slot)
-        if slot['value']['kind'] in ("InstantTime", "TimeInterval", "Duration"):
+        if slot['value']['kind'] in ("InstantTime", "TimeInterval"):
             slots[ slot['slotName']] = slot['value']
         elif slot['value']['kind'] == "Custom":
             slots[ slot['slotName']] = slot['value']['value']
@@ -79,13 +78,13 @@ def delete_alarms( client, userdata, msg):
     uuids = json.loads( msg.payload['customData'])
     if uuids:
         slots = get_slots( msg.payload)
-        if slots.get('answer') != _("yes"):
-            client.end_session( msg.payload['sessionId'])
+        if slots.get('answer') != "yes": # Custom value is already translated
+            return client.end_session( msg.payload['sessionId'])
             
-            alarmclock.alarmctl.delete_alarms(
-                filter( lambda a: a.uuid in uuids, alarmclock.alarmctl.get_alarms()))
-            client.end_session( msg.payload['sessionId'], _("Done."))
-        
+        alarmclock.alarmctl.delete_alarms(
+            filter( lambda a: a.uuid in uuids, alarmclock.alarmctl.get_alarms()))
+        client.end_session( msg.payload['sessionId'], _("Done."))
+    
         if msg.payload['siteId'] in alarmclock.alarmctl.temp_memory:
             del alarmclock.alarmctl.temp_memory[msg.payload['siteId']]
 
