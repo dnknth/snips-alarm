@@ -106,7 +106,7 @@ class AlarmClock:
     def get_next_alarm( self, client, userdata, msg):
         
         site_id = self.get_site_id( msg.payload)
-        alarms = [ a for a in self.alarmctl.get_alarms())) if a.site.siteid == site_id ]
+        alarms = [ a for a in self.alarmctl.get_alarms() if a.site.siteid == site_id ]
         room = self.get_room_name( site_id, msg.payload.site_id, _('here'))
 
         if not alarms:

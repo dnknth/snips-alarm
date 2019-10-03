@@ -75,34 +75,34 @@ def humanize( time, only_days=False):
     delta_hours   = (time - now).seconds // 3600
     delta_minutes = ((time - now).seconds % 3600) // 60
     
-    if (delta_days == 0 or delta_hours <= 12) and not only_days:
-        hours = ngettext( "in one hour", "in {hours} hours", delta_hours).format(
-            hours=delta_hours)
-        minutes = ngettext( "one minute", "{minutes} minutes", delta_minutes).format(
-            minutes=delta_minutes)
+    if delta_days == 0 and not only_days:
+        hours = ngettext( "one", "{hours}", delta_hours).format( hours=delta_hours)
+        minutes = ngettext( "one", "{hours}", delta_minutes).format( hours=delta_minutes)
         
         if not delta_hours and not delta_minutes: return _('now')
-        if not delta_minutes: return hours
-        if not delta_hours: return _("in {minutes}").format( minutes=minutes)
-        return _("{hours} and {minutes} minutes").format(
+        if not delta_hours:
+            return _("in {minutes} minutes").format( minutes=minutes)
+        if not delta_minutes:
+            return _("in {hours} hours").format( hours=hours)
+        return _("in {hours} and {minutes} minutes").format(
             hours=hours, minutes=minutes)
         
-    if delta_days == 0: return _("today")
-    if delta_days == 1: return _("tomorrow")
-    if delta_days == 2: return _("the day after tomorrow")
+    if delta_days <= -2: return _("{day_offset} days ago").format( day_offset=delta_days)
     if delta_days == -1 and time.date() == now.date():
         delta_hours = (now - time).seconds // 3600
         return _("{hours} hours ago").format( hours=delta_hours)
     if delta_days == -1 and (time.date() - now.date()).days == -1:
         return _("yesterday")
-    if delta_days <= -2: return _("{day_offset} days ago").format( day_offset=delta_days)
+    if delta_days == 0: return _("today")
+    if delta_days == 1: return _("tomorrow")
+    if delta_days == 2: return _("the day after tomorrow")
     
     alarm_weekday = TIME_LOCALES[ LANGUAGE].day_names[ time.weekday()]
-    if 3 <= delta_days <= 6: return _("on {weekday}").format( weekday=alarm_weekday)
+    if delta_days <= 6: return _("on {weekday}").format( weekday=alarm_weekday)
     if delta_days == 7: return _("on {weekday} next week").format( weekday=alarm_weekday)
 
-    return _("in {day_offset} days, on {weekday}, the {day}. {month}.").format(
-                day_offset=delta_days, weekday=alarm_weekday, day=time.day,
+    return _("on {weekday}, the {day}. of {month}").format(
+                weekday=alarm_weekday, day=time.day,
                 month=TIME_LOCALES[ LANGUAGE].month_names[time.month])
 
 

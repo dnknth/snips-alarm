@@ -11,14 +11,14 @@
 # section with a different site_id.
 #
 # Settings in the [DEFAULT] section apply to all sites,
-# unless overridden in site sections.
+# unless overridden in room sections.
 # 
-# All settings except site_id are optional. 
+# All settings are optional.
 # If absent, the values listed below will be used.
+#
 
 [DEFAULT]
-site_id = default
-
+ringtone_path = resources/alarm-sound.wav
 ringing_volume = 80
 ringing_timeout = 30
 ringtone_status = on
@@ -27,6 +27,14 @@ snooze_state = off
 snooze_default_duration = 5
 snooze_max_duration = 15
 snooze_challenge = off
+
+# Example room section follows.
+# Unless you wish to control rooms by name,
+# no room sections are needed.
+#
+# Only 'site_id' is required in room sections,
+# but any option from the [DEFAULT] section
+# can also appear here.
 
 [bedroom]
 site_id = default

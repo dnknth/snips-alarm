@@ -11,12 +11,13 @@ from uuid import uuid4
 import wave
 
 
-def truncate_date( d):
-    'Reduce a time stamp to minute precision'
-    return dt( d.year, d.month, d.day, d.hour, d.minute)
+def truncate_date( d, precision=60):
+    'Reduce a time stamp to given precision in seconds'
+    return dt( d.year, d.month, d.day, d.hour, d.minute,
+        d.second // precision * precision)
 
 
-def edit_volume( wav_path, volume):
+def edit_volume( volume, wav_path):
     ringtone = AudioSegment.from_wav(wav_path)
     ringtone -= ringtone.max_dBFS
     ringtone -= (100 - (volume * 0.8 + 20)) * 0.6
@@ -57,7 +58,7 @@ class Alarm:
         else: self.datetime = datetime
         
         self.site = site
-        self.missed = missed
+        self.missed = missed or (self.datetime - dt.now()).days < 0
         self.passed = False
         self.ringing = False
         self.uuid = uuid or str( uuid4())
@@ -78,7 +79,7 @@ class AlarmControl:
     
     SAVED_ALARMS_PATH = ".saved_alarms.json"
     RING_TONE = "resources/alarm-sound.wav"
-
+    TICKS = 2
     
     def __init__( self, config, mqtt_client):
         self.config = config
@@ -94,7 +95,6 @@ class AlarmControl:
             for alarm_dict in json.load( f):
                 alarm_dict['site'] = self.sites[ alarm_dict['site']]
                 alarm = Alarm( **alarm_dict)
-                alarm.missed = ( alarm.datetime - dt.now()).days < 0
                 if not alarm.missed:
                     self.alarms.append( alarm)
                     self.log.debug( 'Restored: %s', alarm)
@@ -116,23 +116,24 @@ class AlarmControl:
         self.sites[siteid] = Site( siteid,
             self.config[ room].getboolean( 'ringtone_status', True),
             self.config[ room].getint( 'ringing_timeout', 30),
-            edit_volume( self.RING_TONE, ringing_volume))
+            edit_volume( ringing_volume,
+                self.config[ room].get( 'ringtone_path', self.RING_TONE)))
         self.log.debug( 'Added: %s', self.sites[siteid])
 
 
     def clock( self):
         """
-        Checks in a loop if the current time and date matches with one of the alarm dictionary.
+        Checks in a loop if the current time and date matches a pending alarm.
         :return: Nothing
         """
 
         while True:
-            now = truncate_date( dt.now())
+            now = truncate_date( dt.now(), self.TICKS)
             for alarm in self.alarms:
                 if not alarm.passed and alarm.datetime == now:
                     alarm.passed = True
                     self.start_ringing( alarm, now)
-            time.sleep(3)
+            time.sleep( self.TICKS)
 
 
     def start_ringing( self, alarm, now):

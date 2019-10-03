@@ -4,7 +4,7 @@ GETTEXT = /usr/local/opt/gettext
 POT = alarmclock/locales/messages.pot
 LOCALE = alarmclock/locales/de/LC_MESSAGES/messages.po
 
-run: .venv3 $(LOCALE:.po=.mo)
+run: .venv3 $(LOCALE:.po=.mo) $(POT)
 	PYTHONPATH=$(PWD)/../snipsclient $(BIN)/python3 action-alarm.py -v3
 
 .venv3: requirements.txt
