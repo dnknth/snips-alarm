@@ -97,5 +97,6 @@ if __name__ == '__main__':
     options = parser.parse_args()
     
     mqtt_client.log.setLevel( LOG_LEVELS[ options.verbosity])
+    alarmclock.log.setLevel( LOG_LEVELS[ options.verbosity])
     alarmclock.alarmctl.log.setLevel( LOG_LEVELS[ options.verbosity])
     mqtt_client.run()

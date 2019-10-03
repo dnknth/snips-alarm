@@ -89,14 +89,14 @@ class AlarmControl:
         
         for siteid in config.sites: self.add_site( siteid)
 
-        self.alarms = set()
+        self.alarms = []
         with io.open( self.SAVED_ALARMS_PATH, "r") as f:
             for alarm_dict in json.load( f):
                 alarm_dict['site'] = self.sites[ alarm_dict['site']]
                 alarm = Alarm( **alarm_dict)
                 alarm.missed = ( alarm.datetime - dt.now()).days < 0
                 if not alarm.missed:
-                    self.alarms.add( alarm)
+                    self.alarms.append( alarm)
                     self.log.debug( 'Restored: %s', alarm)
         self.save()
         
@@ -128,9 +128,8 @@ class AlarmControl:
 
         while True:
             now = truncate_date( dt.now())
-            if now in [alarm.datetime for alarm in self.get_alarms()]:
-                pending_alarms = [alarm for alarm in self.get_alarms( now) if not alarm.passed]
-                for alarm in pending_alarms:
+            for alarm in self.alarms:
+                if not alarm.passed and alarm.datetime == now:
                     alarm.passed = True
                     self.start_ringing( alarm, now)
             time.sleep(3)
@@ -158,7 +157,6 @@ class AlarmControl:
         :param site: The site object (site of the user)
         :return: Nothing
         """
-
         site.ringtone_id = self.mqtt_client.play_sound( site.siteid, site.ringtone_wav)
 
 
@@ -266,7 +264,8 @@ class AlarmControl:
     def add_alarm( self, datetime, siteid):
         if siteid not in self.sites: self.add_site( siteid)
         alarm = Alarm( datetime, self.sites[ siteid])
-        self.alarms.add( alarm)
+        self.alarms.append( alarm)
+        self.alarms.sort( key=lambda alarm: alarm.datetime)
         self.log.debug( 'Added: %s', alarm)
         self.save()
 
@@ -277,16 +276,11 @@ class AlarmControl:
         self.log.debug( 'Saved %d alarms', len( self.alarms))
 
 
-    def get_alarms( self, dtobject=None, siteid=None, only_ringing=False, missed=False):
-        alarms = filter( lambda a: a.missed == missed, self.alarms)
-        if only_ringing: alarms = filter( lambda a: a.ringing, alarms)
-        if dtobject:     alarms = filter( lambda a: a.datetime == dtobject, alarms)
-        if siteid:       alarms = filter( lambda a: a.site.siteid == siteid, alarms)
-        return alarms
+    def get_alarms( self, missed=False):
+        return filter( lambda alarm: alarm.missed == missed, self.alarms)
 
 
     def delete_alarms( self, alarms):
-        alarms = set( alarms)
-        self.alarms -= alarms
+        self.alarms = [ a for a in self.alarms if a not in alarms ]
         self.log.debug( 'Deleted %d alarms', len( alarms))
         self.save()

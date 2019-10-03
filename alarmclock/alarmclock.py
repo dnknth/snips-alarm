@@ -4,6 +4,7 @@ import configparser
 import datetime
 import io
 import json
+import logging
 import re
 import paho.mqtt.client as mqtt
 
@@ -23,7 +24,7 @@ def get_now_time():
 class AlarmClock:
     
     def __init__( self, mqtt_client, configuration_file='config.ini'):
-        self.log = mqtt_client.log
+        self.log = logging.getLogger( self.__class__.__name__)
         
         self.config = configparser.ConfigParser()
         self.config.read( configuration_file, encoding='utf-8')
@@ -103,24 +104,24 @@ class AlarmClock:
 
 
     def get_next_alarm( self, client, userdata, msg):
-        error, alarms, words_dict = self.filter_alarms( self.alarmctl.get_alarms(), msg.payload)
+        
+        site_id = self.get_site_id( msg.payload)
+        alarms = [ a for a in self.alarmctl.get_alarms())) if a.site.siteid == site_id ]
+        room = self.get_room_name( site_id, msg.payload.site_id, _('here'))
 
         if not alarms:
-            return _("There is no alarm {room_part} {future_part} {time_part}").format(
-                        room_part=words_dict['room_part'],
-                        future_part=words_dict['future_part'],
-                        time_part=words_dict['time_part'])
+            return _("There is no alarm {room_part}.").format( room_part=room)
+        
+        delta = alarms[0].datetime - datetime.datetime.now()
+        if delta.seconds // 60 <= 15:
+            text = _("The next alarm {room_part} starts {future_part}.")
+        elif delta.seconds // 60 <= 60:
+            text = _("The next alarm {room_part} starts {future_part} at {time}.")
+        else:
+            text = _("The next alarm {room_part} starts at {time}.")
 
-        next_alarm = alarms[0]
-        room_part = ""
-        if not words_dict['room_part']:
-            room_part = self.get_room_name( next_alarm.site.siteid, msg.payload.site_id)
-            
-        return _("The next alarm {room_slot} starts {future_part} at {time} {room_part}.").format(
-                    room_slot=words_dict['room_part'],
-                    future_part=humanize(next_alarm.datetime),
-                    time=spoken_time(next_alarm.datetime),
-                    room_part=room_part)
+        return text.format( future_part=humanize( alarms[0].datetime),
+                    time=spoken_time( alarms[0].datetime), room_part=room)
 
 
     def get_missed_alarms( self, client, userdata, msg):
@@ -144,7 +145,6 @@ class AlarmClock:
 
     def add_alarms_part( self, siteid, alarms, words_dict, alarm_count):
         response = " "
-        alarms = list( alarms) # iterators cannot be sliced
         default_name = _('here') if len( alarms) > 1 else ''
 
         for alarm in alarms:
@@ -275,7 +275,7 @@ class AlarmClock:
             alarms = filter( lambda a: a.site.siteid == context_siteid, alarms)
             room_part = self.get_room_name( context_siteid, payload.site_id)
             
-        return "", sorted( alarms, key=lambda alarm: alarm.datetime), {
+        return "", list( alarms), {
             'future_part': future_part,
             'time_part': time_part,
             'room_part': room_part
