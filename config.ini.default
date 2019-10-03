@@ -1,8 +1,32 @@
-[global]
-ringing_volume=50
-ringing_timeout=30
-dict_siteids=Schlafzimmer:default
-default_room=Schlafzimmer
-ringtone_status=on
-snooze_config=state:off
-[secret]
+# Settings for the alarm skill.
+#
+# The smallest possible configuration looks like this:
+#   [DEFAULT]
+#   site_id = default
+#
+# where 'default' is the ID of a Snips audio server,
+# as given in the 'bind' setting in /etc/snips.toml.
+#
+# For a multi-room setup, list each site in it's own
+# section with a different site_id.
+#
+# Settings in the [DEFAULT] section apply to all sites,
+# unless overridden in site sections.
+# 
+# All settings except site_id are optional. 
+# If absent, the values listed below will be used.
+
+[DEFAULT]
+site_id = default
+
+ringing_volume = 80
+ringing_timeout = 30
+ringtone_status = on
+
+snooze_state = off
+snooze_default_duration = 5
+snooze_max_duration = 15
+snooze_challenge = off
+
+[bedroom]
+site_id = default

@@ -11,6 +11,11 @@ from uuid import uuid4
 import wave
 
 
+def truncate_date( d):
+    'Reduce a time stamp to minute precision'
+    return dt( d.year, d.month, d.day, d.hour, d.minute)
+
+
 def edit_volume( wav_path, volume):
     ringtone = AudioSegment.from_wav(wav_path)
     ringtone -= ringtone.max_dBFS
@@ -28,9 +33,8 @@ def edit_volume( wav_path, volume):
 
 class Site:
 
-    def __init__( self, siteid, room, ringtone_status, ringing_timeout, ringtone_wav):
+    def __init__( self, siteid, ringtone_status, ringing_timeout, ringtone_wav):
         self.siteid = siteid
-        self.room = room
         self.ringing_timeout = ringing_timeout
         self.ringtone_status = ringtone_status
         self.ringtone_wav = ringtone_wav
@@ -40,7 +44,7 @@ class Site:
         self.session_pending = False
         
     def __repr__( self):
-        return "<Site '%s' in '%s'>" % (self.siteid, self.room)
+        return "<Site '%s' (%s)>" % (self.siteid, 'on' if self.ringtone_status else 'off')
 
 
 class Alarm:
@@ -81,15 +85,9 @@ class AlarmControl:
         self.mqtt_client = mqtt_client
         self.temp_memory = {}
         self.log = logging.getLogger( self.__class__.__name__)
-
         self.sites = {}
-        for room, siteid in config['dict_siteids'].items():
-            ringing_volume = self.config['ringing_volume'][siteid]
-            self.sites[siteid] = Site( siteid, room,
-                self.config[ 'ringtone_status'][siteid],
-                self.config[ 'ringing_timeout'][siteid],
-                edit_volume( self.RING_TONE, ringing_volume))
-            self.log.debug( 'Added: %s', self.sites[siteid])
+        
+        for siteid in config.sites: self.add_site( siteid)
 
         self.alarms = set()
         with io.open( self.SAVED_ALARMS_PATH, "r") as f:
@@ -108,9 +106,18 @@ class AlarmControl:
         self.mqtt_client.subscribe( [
             ('hermes/dialogueManager/sessionStarted', 1),
             ('hermes/hotword/#', 1) ])
-            # ('hermes/audioServer/+/playFinished', 1)
         self.mqtt_client.on_session_ended( self.on_session_ended)
         self.mqtt_client.topic( 'hermes/hotword/+/detected')( self.on_message_hotword)
+
+
+    def add_site( self, siteid):
+        room = self.config.sites.get( siteid, 'DEFAULT')
+        ringing_volume = self.config[ room].getint( 'ringing_volume', 80)
+        self.sites[siteid] = Site( siteid,
+            self.config[ room].getboolean( 'ringtone_status', True),
+            self.config[ room].getint( 'ringing_timeout', 30),
+            edit_volume( self.RING_TONE, ringing_volume))
+        self.log.debug( 'Added: %s', self.sites[siteid])
 
 
     def clock( self):
@@ -120,8 +127,7 @@ class AlarmControl:
         """
 
         while True:
-            now = dt.now()
-            now = dt( now.year, now.month, now.day, now.hour, now.minute)
+            now = truncate_date( dt.now())
             if now in [alarm.datetime for alarm in self.get_alarms()]:
                 pending_alarms = [alarm for alarm in self.get_alarms( now) if not alarm.passed]
                 for alarm in pending_alarms:
@@ -236,7 +242,8 @@ class AlarmControl:
         self.sites[ site_id].session_pending = False
         self.mqtt_client.message_callback_remove('hermes/dialogueManager/sessionStarted')
         
-        if self.config['snooze_config']['state']:
+        room = self.config.sites.get( site_id) or 'DEFAULT'
+        if self.config[ room].getboolean( 'snooze_state'):
             self.mqtt_client.end_session( payload['sessionId'])
             self.mqtt_client.start_session( site_id,
                 self.mqtt_client.action_init(
@@ -256,7 +263,9 @@ class AlarmControl:
             del self.temp_memory[ site_id]
         
 
-    def add( self, alarm):
+    def add_alarm( self, datetime, siteid):
+        if siteid not in self.sites: self.add_site( siteid)
+        alarm = Alarm( datetime, self.sites[ siteid])
         self.alarms.add( alarm)
         self.log.debug( 'Added: %s', alarm)
         self.save()

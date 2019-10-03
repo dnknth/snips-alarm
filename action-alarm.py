@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
-from alarmclock.alarmclock import AlarmClock
+from alarmclock.alarmclock import AlarmClock, SkillError
 from alarmclock.translation import _
 import json
 import logging
 import paho.mqtt.client as mqtt
 from snipsclient import Client
+from snipsclient.intent import parse_intent
 import toml
 
 
@@ -26,26 +27,18 @@ mqtt_client = Client()
 alarmclock = AlarmClock( mqtt_client)
 
 
-def get_slots( payload):
-    'Extract names / values from slots'
-    slots = {}
-    for slot in payload['slots']:
-        if slot['value']['kind'] in ("InstantTime", "TimeInterval"):
-            slots[ slot['slotName']] = slot['value']
-        elif slot['value']['kind'] == "Custom":
-            slots[ slot['slotName']] = slot['value']['value']
-    return slots
-
-
 def on( intent, handler):
     'Register an intent handler'
     
     def wrapper( client, userdata, msg):
-        client.end_session( msg.payload['sessionId'], 
-            handler( get_slots( msg.payload), msg.payload['siteId']))
+        try:
+            client.end_session( msg.payload.session_id, 
+                handler( client, userdata, msg))
+        except SkillError as e:
+            client.end_session( msg.payload.session_id, str( e))
 
-    mqtt_client.on_intent( PREFIX + intent)(
-        mqtt_client.debug_json( 'slots', 'siteId')( wrapper))
+    mqtt_client.on_intent( PREFIX + intent, 
+        payload_converter=parse_intent)( wrapper)
 
 
 on( 'newAlarm', alarmclock.new_alarm)
@@ -55,38 +48,41 @@ on( 'getMissedAlarms', alarmclock.get_missed_alarms)
 on( 'answerAlarm', alarmclock.answer_alarm)
 
 
-@mqtt_client.on_intent( PREFIX + 'deleteAlarms')
-@mqtt_client.debug_json( 'slots', 'siteId')
+@mqtt_client.on_intent( PREFIX + 'deleteAlarms', payload_converter=parse_intent)
 def delete_alarms_try( client, userdata, msg):
-    # delete alarms with the given properties
-    slots = get_slots( msg.payload)
-    alarms, response = alarmclock.delete_alarms_try( slots, msg.payload['siteId'])
 
-    if not alarms:
-        return client.end_session( msg.payload['sessionId'], response)
+    try:
+        # delete alarms with the given properties
+        alarms, response = alarmclock.delete_alarms_try( client, userdata, msg)
 
-    client.continue_session(
-        msg.payload['sessionId'],
-        response,
-        [PREFIX + 'confirmAlarm'],
-        custom_data=[ a.uuid for a in alarms ])
+        if not alarms:
+            return client.end_session( msg.payload.session_id, response)
+
+        client.continue_session(
+            msg.payload.session_id,
+            response,
+            [PREFIX + 'confirmAlarm'],
+            custom_data=[ a.uuid for a in alarms ])
+            
+    except SkillError as e:
+        client.end_session( msg.payload.session_id, str( e))
 
 
-@mqtt_client.on_intent( PREFIX + 'confirmAlarm')
-@mqtt_client.debug_json( 'customData', 'siteId')
+@mqtt_client.on_intent( PREFIX + 'confirmAlarm', payload_converter=parse_intent)
 def delete_alarms( client, userdata, msg):
-    uuids = json.loads( msg.payload['customData'])
-    if uuids:
-        slots = get_slots( msg.payload)
-        if slots.get('answer') != "yes": # Custom value is already translated
-            return client.end_session( msg.payload['sessionId'])
+
+    if msg.payload.custom_data:
+        answer = msg.payload.slot_values.get('answer')
+        if not answer or answer.value != "yes": # Custom value is already translated
+            return client.end_session( msg.payload.session_id)
             
         alarmclock.alarmctl.delete_alarms(
-            filter( lambda a: a.uuid in uuids, alarmclock.alarmctl.get_alarms()))
-        client.end_session( msg.payload['sessionId'], _("Done."))
+            filter( lambda a: a.uuid in msg.payload.custom_data,
+                alarmclock.alarmctl.get_alarms()))
+        client.end_session( msg.payload.session_id, _("Done."))
     
-        if msg.payload['siteId'] in alarmclock.alarmctl.temp_memory:
-            del alarmclock.alarmctl.temp_memory[msg.payload['siteId']]
+        if msg.payload.site_id in alarmclock.alarmctl.temp_memory:
+            del alarmclock.alarmctl.temp_memory[msg.payload.site_id]
 
 
 if __name__ == '__main__':

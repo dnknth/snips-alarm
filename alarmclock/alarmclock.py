@@ -7,156 +7,86 @@ import json
 import re
 import paho.mqtt.client as mqtt
 
-from . alarm import Alarm, AlarmControl
+from . alarm import AlarmControl, truncate_date
 from . translation import _, ngettext, preposition, humanize, spoken_time, get_interval_part
 
 
-ON_OFF = {
-    'on'  : True,
-    'off' : False,
-}
-
-
-def concat( *strings):
-    return " ".join( strings)
-
-
-def parse( time_str):
-    return datetime.datetime.strptime( time_str[:16], "%Y-%m-%d %H:%M")
+class SkillError( Exception):
+    'Signal that an intent cannot be handled'
+    pass
 
 
 def get_now_time():
-    dt = datetime.datetime.now()
-    return datetime.datetime( dt.year, dt.month, dt.day, dt.hour, dt.minute)
-
-
-def get_config( configuration_file="config.ini"):
-    cp = configparser.ConfigParser()
-    with io.open(configuration_file, encoding="utf-8") as f: cp.read_file(f)
-
-    config = { section :
-        { option_name: option for option_name, option in cp.items(section) }
-        for section in cp.sections()}
-
-    pairs = config['global']['dict_siteids'].replace(" ", "").split(",")
-    output_dict = { 'dict_siteids' : dict( map( lambda pair: pair.split(":"), pairs)) }
+    return truncate_date( datetime.datetime.now())
     
-    del config['global']['dict_siteids']
-    for param in config['global']:
-        value = config['global'][param].replace(" ", "")
-        if ":" in value:
-            output_dict[param] = {}
-            for pair in value.split(","):
-                fvalue = _format_value(param, pair.split(":")[1])
-                output_dict[param][pair.split(":")[0]] = fvalue
-        elif param in ('ringing_volume', 'ringing_timeout', 'ringtone_status'):
-            output_dict[param] = {
-                output_dict['dict_siteids'][room]: _format_value(param, value)
-                for room in output_dict['dict_siteids'] }
-        else:
-            output_dict[param] = _format_value(param, value)
-    return output_dict
-
-
-def _format_value( param, user_value):
-    
-    if param == 'ringing_volume' or param == 'ringing_timeout':
-        return int( user_value)
-
-    if param == 'default_room':
-        # TODO: Make room names with spaces valid.
-        return user_value
-
-    if param in ('ringtone_status', 'restore_alarms'):
-        return bool( re.findall("^(yes|on|true)$", user_value.lower()))
-
-    if param == 'snooze_config':
-        return ON_OFF[ user_value]
-
 
 class AlarmClock:
     
-    def __init__( self, mqtt_client):
-        self.config = get_config()
+    def __init__( self, mqtt_client, configuration_file='config.ini'):
+        self.log = mqtt_client.log
+        
+        self.config = configparser.ConfigParser()
+        self.config.read( configuration_file, encoding='utf-8')
+        
+        self.config.sites = { self.config[section]['site_id'] : section
+            for section in self.config if section != 'DEFAULT' }
+        
         self.alarmctl = AlarmControl( self.config, mqtt_client)
 
 
-    def new_alarm( self, slots, siteid):
+    def get_site_id( self, payload, slot='room'):
+        'Obtain a site_id by room name or message origin'
 
-        """
-        Called when creating a new alarm. Logic: see ../resources/Snips-Alarmclock-newAlarm.png
-        :param slots: The slots of the intent from the NLU
-        :param siteid: The siteId of the device where the user has spoken
-        :return: Dictionary with some keys:
-                    'rc' - Return code: Numbers representing normal or error message.
-                                0 - Everything good, alarm was created (other keys below are available)
-                                1 - This room is not configured (if slot 'room' is "hier")
-                                2 - Room 'room' is not configured (if slot 'room' is not "hier")
-                                3 - The slots are not properly filled
-                                4 - Time of the alarm is in the past
-                                5 - Difference of now-time and alarm-time too small
-                    'fpart' - Part of the sentence which describes the future
-                    'rpart' - Room name of the new alarm (context-dependent)
-                    'hours' - Alarm time (hours)
-                    'minutes' - Alarm time (minutes)
-        """
+        if slot not in payload.slot_values:
+            return payload.site_id
 
-        if not slots: return _("Sorry, I did not understand you.")
-        default_room = self.config['default_room']
-        sites = self.config['dict_siteids']
+        room = payload.slot_values[ slot].value
+        if room == _("here"): return payload.site_id
 
-        if len( self.alarmctl.sites) > 1:
-            if 'room' in slots:
-                room_slot = slots['room']
-                if room_slot == _("here"):
-                    if siteid not in sites.values():
-                        return _("This room here hasn't been configured yet.")
-                    alarm_site_id = siteid
-                    room_part = _("here")
+        if room not in self.config or 'site_id' not in self.config[ room]:
+            self.log.warning( "Unknown room: %s", room)
+            raise SkillError( _("This room has not been configured yet."))
+        return self.config[ room]['site_id']
 
-                else:
-                    if room_slot not in sites:
-                        return _("The room {room} has not been configured yet.").format( room=room_slot)
-                        
-                    alarm_site_id = sites[room_slot]
-                    if siteid == alarm_site_id: room_part = _("here")
-                    else: room_part = preposition(room_slot)
 
-            else:
-                alarm_site_id = sites[default_room]
-                if siteid == alarm_site_id: room_part = _("here")
-                else: room_part = preposition( default_room)
+    def get_room_name( self, site_id, msg_site_id, default_name=''):
+        'Get the room name for a site_id'
         
-        else:
-            alarm_site_id = sites[default_room]
-            room_part = ""
-            
-        # remove the timezone and some numbers from time string
-        if slots['time']['kind'] != "InstantTime":
-            return _("I'm afraid I did not understand you.")
-        alarm_time = parse(slots['time']['value'])
+        if site_id == msg_site_id: return default_name
+        if site_id not in self.config.sites:
+            self.log.warning( "Unknown site ID: %s", site_id)
+            raise SkillError( _("This room has not been configured yet."))
+        return preposition( self.config.sites[ site_id])
+
+
+    def new_alarm( self, client, userdata, msg):
+        'Create a new alarm. See ../resources/Snips-Alarmclock-newAlarm.png'
+
+        if not msg.payload.slots or msg.payload.slot_values['time'].kind != "InstantTime":
+            return _("Sorry, I did not understand you.")
+
+        alarm_site_id = self.get_site_id( msg.payload)
+        room_part = self.get_room_name( alarm_site_id, msg.payload.site_id)
+                    
+        # remove the time zone and some numbers from time string
+        alarm_time = truncate_date( msg.payload.slot_values['time'].value)
 
         if (alarm_time - get_now_time()).days < 0:  # if date is in the past
-            return concat( _("This time is in the past."),
-                           _("Please set another alarm."))
-        elif (alarm_time - get_now_time()).seconds < 120:
-            return concat( _("This alarm would ring now."),
-                           _("Please set another alarm."))
+            return  _("This time is in the past.")
+        elif (alarm_time - get_now_time()).seconds < 60:
+            return _("This alarm would ring now.")
 
-        alarm = Alarm( alarm_time, self.alarmctl.sites[alarm_site_id])
-        self.alarmctl.add( alarm)
-        
+        self.alarmctl.add_alarm( alarm_time, alarm_site_id)
         return _("The alarm will ring {room_part} {future_part} at {time}.").format(
             future_part=humanize( alarm_time),
             time=spoken_time( alarm_time),
             room_part=room_part)
 
 
-    def get_alarms( self, slots, siteid):
-        error, alarms, words_dict = self.filter_alarms( self.alarmctl.get_alarms(), slots, siteid)
-        if error: return error
+    def get_alarms( self, client, userdata, msg):
+        error, alarms, words_dict = self.filter_alarms( self.alarmctl.get_alarms(), msg.payload)
 
-        alarm_count = len(alarms)
+        alarm_count = len( alarms)
         if alarm_count == 0:
             response = _("There is no alarm {room_part} {future_part} {time_part}.")
             
@@ -168,12 +98,12 @@ class AlarmClock:
         
         response = response.format( num_part=alarm_count, **words_dict).strip()
         if alarm_count > 5: response += _('. The next five are:')
-        return response + ' ' + self.add_alarms_part( siteid, alarms[:5], words_dict, alarm_count)
+        return response + ' ' + self.add_alarms_part(
+            msg.payload.site_id, alarms[:5], words_dict, alarm_count)
 
 
-    def get_next_alarm( self, slots, siteid):
-        error, alarms, words_dict = self.filter_alarms( self.alarmctl.get_alarms(), slots, siteid)
-        if error: return error
+    def get_next_alarm( self, client, userdata, msg):
+        error, alarms, words_dict = self.filter_alarms( self.alarmctl.get_alarms(), msg.payload)
 
         if not alarms:
             return _("There is no alarm {room_part} {future_part} {time_part}").format(
@@ -182,10 +112,9 @@ class AlarmClock:
                         time_part=words_dict['time_part'])
 
         next_alarm = alarms[0]
-        if words_dict['room_part']:
-            room_part = ""
-        else:
-            room_part = self.get_roomstr([next_alarm.site.siteid], siteid)
+        room_part = ""
+        if not words_dict['room_part']:
+            room_part = self.get_room_name( next_alarm.site.siteid, msg.payload.site_id)
             
         return _("The next alarm {room_slot} starts {future_part} at {time} {room_part}.").format(
                     room_slot=words_dict['room_part'],
@@ -194,10 +123,9 @@ class AlarmClock:
                     room_part=room_part)
 
 
-    def get_missed_alarms( self, slots, siteid):
+    def get_missed_alarms( self, client, userdata, msg):
         error, alarms, words_dict = self.filter_alarms(
-            self.alarmctl.get_alarms( missed=True), slots, siteid, timeslot_with_past=True)
-        if error: return error
+            self.alarmctl.get_alarms( missed=True), msg.payload, timeslot_with_past=True)
         self.alarmctl.delete_alarms( alarms)
 
         alarm_count = len(alarms)
@@ -211,29 +139,28 @@ class AlarmClock:
                         
         # sort from old to new (say oldest alarms first)
         return response.format( num=alarm_count, **words_dict).strip() + ' ' + \
-            self.add_alarms_part( siteid, reversed( alarms), words_dict, alarm_count)
+            self.add_alarms_part( msg.payload.site_id, reversed( alarms), words_dict, alarm_count)
 
 
     def add_alarms_part( self, siteid, alarms, words_dict, alarm_count):
         response = " "
         alarms = list( alarms) # iterators cannot be sliced
-        for alarm in alarms:
+        default_name = _('here') if len( alarms) > 1 else ''
 
+        for alarm in alarms:
             # If room and/or time not said in speech command, the alarms were not filtered with that.
             # So these parts must be looked up for every datetime object.
             future_part = words_dict.get( 'future_part')
             if not future_part:
-                future_part = humanize(alarm.datetime, only_days=True)
+                future_part = humanize( alarm.datetime, only_days=True)
 
             time_part = words_dict.get( 'time_part')
             if not time_part:
-                time_part = _("at {time}").format( time=spoken_time(alarm.datetime))
+                time_part = _("at {time}").format( time=spoken_time( alarm.datetime))
                 
             room_part = words_dict.get( 'room_part')
             if not room_part:
-                room_part = self.get_roomstr( [
-                    alarm.site.siteid for alarm in
-                    self.alarmctl.get_alarms(alarm.datetime)], siteid)
+                room_part = self.get_room_name( alarm.site.siteid, siteid, default_name=default_name)
                     
             response += _("{future_part} {time_part} {room_part}").format( **locals())
             response += ", " if alarm.datetime != alarms[-1].datetime else "."
@@ -242,26 +169,13 @@ class AlarmClock:
         return response.strip()
 
 
-    def delete_alarms_try( self, slots, siteid):
+    def delete_alarms_try( self, client, userdata, msg):
         """
-        Called when the user want to delete multiple alarms. If user said room and/or date the alarms with these
-        properties will be deleted. Otherwise all alarms will be deleted.
-        :param slots: The slots of the intent from Snips
-        :param siteid: The siteId where the user triggered the intent
-        :return: Dictionary with some keys:
-            'rc' - Return code: Numbers representing normal or error message.
-                        0 - Everything good (other keys below are available)
-                        1 - This room is not configured (if slot 'room' is "hier")
-                        2 - Room 'room' is not configured (if slot 'room' is not "hier")
-                        3 - Date is in the past
-            'matching_alarms' - List with datetime objects which will be deleted on confirmation
-            'future_part' - Part of the sentence which describes the future
-            'room_part' - Room name of the alarms (context-dependent)
-            'alarm_count' - Number of matching alarms (if alarms are ringing in two rooms at
-                            one time, this means two alarms)
+        Called when the user want to delete multiple alarms.
+        If the user said a room and/or date the alarms with these properties will be deleted.
+        Otherwise all alarms will be deleted.
         """
-        error, alarms, words_dict = self.filter_alarms( self.alarmctl.get_alarms(), slots, siteid)
-        if error: return [], error
+        error, alarms, words_dict = self.filter_alarms( self.alarmctl.get_alarms(), msg.payload)
 
         if not alarms:
             return [], _("There is no alarm {room_part} {future_part} {time_part}.").format(
@@ -274,7 +188,7 @@ class AlarmClock:
             if words_dict['room_part']:
                 room_part = ""
             else:
-                room_part = self.get_roomstr([alarms[0].site], siteid)
+                room_part = self.get_room_name( alarms[0].site.siteid, msg.payload.site_id)
                 
             return alarms, _("Are you sure you want to delete the only "
                              "alarm {room_slot} {future_part} at {time} {room_part}?").format(
@@ -291,60 +205,60 @@ class AlarmClock:
                             num=alarm_count)
 
 
-    def answer_alarm( self, slots, siteid):
-        # TODO: self.config[snooze_config] = {state: on, default_duration: 9, min_duration: 2, max_duration: 10, challenge: on}
+    def answer_alarm( self, client, userdata, msg):
 
-        if not slots: return _("I'm afraid I did not understand you.")
+        if not msg.payload.slots: return _("Sorry, I did not understand you.")
+        
+        site_id = msg.payload.site_id
+        room = self.config.sites.get( site_id, 'DEFAULT')
 
-        min_duration = self.config['snooze_config']['min_duration']
-        max_duration = self.config['snooze_config']['max_duration']
-        if slots.get('duration') and min_duration <= int(slots['duration']['minutes']) <= max_duration:
-            duration = int(slots['duration']['minutes'])
-        else:
-            duration = self.config['snooze_config']['default_duration']
-        dtobj_next = self.alarmctl.temp_memory[siteid] + datetime.timedelta(minutes=duration)
-        next_alarm = Alarm(dtobj_next, self.alarmctl.sites[siteid])
-
-        answer_slot = slots['answer'] if 'answer' in slots else None
-
+        if not self.config[room].getboolean( 'snooze_state'): return
+        
+        max_duration = self.config[room].getint( 'snooze_max_duration', 15)
+        duration = self.config[room].getint( 'snooze_default_duration', 5)
+        
+        if 'duration' in msg.payload.slots and msg.payload.slot_values['duration'].minutes <= max_duration:
+            duration = msg.payload.slot_values['duration'].minutes
+        
+        answer_slot = msg.payload.slots.get( 'answer')
         if not answer_slot or answer_slot == "snooze":
-            self.alarmctl.add( next_alarm)
+            dtobj_next = self.alarmctl.temp_memory[msg.payload.site_id] + datetime.timedelta(minutes=duration)
+            self.alarmctl.add_alarm( dtobj_next, msg.payload.site_id)
             return _("I will wake you in {min} minutes.").format(min=duration)
 
+        # FIXME no action?
         return _("I will wake you in {min} minutes.").format( min=5)
 
 
-    def filter_alarms( self, alarms, slots, siteid, timeslot_with_past=False):
-        """Helper function which filters alarms with datetime and rooms"""
+    def filter_alarms( self, alarms, payload, timeslot_with_past=False):
+        "Helper function which filters alarms with datetime and rooms"
 
         future_part = ""
         time_part = ""
         room_part = ""
 
-        if 'time' in slots:
-            if slots['time']['kind'] == "InstantTime":
-                alarm_time = parse( slots['time']['value'])
+        if 'time' in payload.slots:
+            if payload.slot_values['time'].kind == "InstantTime":
+                alarm_time = truncate_date( payload.slot_values['time'].value)
                 future_part = humanize( alarm_time, only_days=True)
                 
-                if slots['time']['grain'] == "Hour" or slots['time']['grain'] == "Minute":
+                if payload.slot_values['time'].grain in ("Hour", "Minute"):
                     if not timeslot_with_past and (alarm_time - get_now_time()).days < 0:
-                        return 1, None, None
+                        raise SkillError( _("This time is in the past."))
                     alarms = filter( lambda a: a.datetime == alarm_time, alarms)
                     time_part = _("at {time}").format( time=spoken_time(alarm_time))
 
                 else:
                     alarm_date = alarm_time.date()
                     if (alarm_date - datetime.datetime.now().date()).days < 0:
-                        return _("This time is in the past."), [], {}
+                        raise SkillError( _("This time is in the past."))
                     alarms = filter( lambda a: a.datetime.date() == alarm_date, alarms)
             
-            elif slots['time']['kind'] == "TimeInterval":
-                time_from = None
-                time_to = None
-                if slots['time']['from']:
-                    time_from = parse(slots['time']['from'])
-                if slots['time']['to']:
-                    time_to = parse(slots['time']['to'])
+            elif payload.slot_values['time'].kind == "TimeInterval":
+                time_from, time_to = payload.slot_values['time'].value
+                time_from = truncate_date( time_from) if time_from else None
+                time_to = truncate_date( time_to) if time_to else None
+                
                 if not time_from and time_to:
                     alarms = filter( lambda a: a.datetime <= time_to, alarms)
                 elif time_from and not time_to:
@@ -354,42 +268,15 @@ class AlarmClock:
                 future_part = get_interval_part( time_from, time_to)
                 
             else:
-                return _("I'm afraid I did not understand you."), [], {}
+                raise SkillError( _("Sorry, I did not understand you."))
         
-        if 'room' in slots:
-            sites = self.config['dict_siteids']
-            room_slot = slots['room']
-            
-            if room_slot == _("here"):
-                if siteid not in sites.values():
-                    return _("This room has not been configured yet."), [], {}
-                context_siteid = siteid
-                    
-            else:
-                if room_slot not in sites:
-                    return _("The room {room} has not been configured yet.").format( room=room_slot), [], {}
-                context_siteid = sites[room_slot]
-                    
+        if 'room' in payload.slots: 
+            context_siteid = self.get_site_id( payload)
             alarms = filter( lambda a: a.site.siteid == context_siteid, alarms)
-            room_part = self.get_roomstr([context_siteid], siteid)
+            room_part = self.get_room_name( context_siteid, payload.site_id)
             
         return "", sorted( alarms, key=lambda alarm: alarm.datetime), {
             'future_part': future_part,
             'time_part': time_part,
             'room_part': room_part
         }
-
-
-    def get_roomstr( self, siteids, siteid):
-        room_str = ""
-        if len( self.alarmctl.sites) > 1:
-            for iter_siteid in siteids:
-                if iter_siteid == siteid:
-                    room_str += _("here")
-                else:
-                    room_str += preposition( self.alarmctl.sites[iter_siteid].room)
-
-                if len(siteids) > 1:
-                    if iter_siteid == siteids[-2]: room_str += _(" and ")
-                    elif iter_siteid != siteids[-1]: room_str += ", "
-        return room_str
