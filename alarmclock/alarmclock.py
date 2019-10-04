@@ -103,7 +103,7 @@ class AlarmClock( MultiRoomConfig):
             "You missed {num} alarms {alarms} {filler}.",
             len( alarms))
                         
-        self.alarmctl.delete_alarms( alarms)
+        # self.alarmctl.delete_alarms( alarms)
         return response.format( num=len( alarms),
                 alarms=self.say_alarms( alarms[:2], msg.payload.site_id),
                 filler=_('and more') if len( alarms) > 2 else '')
@@ -203,13 +203,13 @@ class AlarmClock( MultiRoomConfig):
         return list( alarms)
 
 
-    def say_alarms( self, alarms, siteid):
+    def say_alarms( self, alarms, siteid, default_room=_('here')):
         if not alarms: return ''
         default_name = _('here') if len( alarms) > 1 else ''
         sites = set( alarm.site.siteid for alarm in alarms)
         
-        parts = [ self.say_alarm( alarm, siteid, len( sites) > 1)
-            for alarm in alarms ]
+        parts = [ self.say_alarm( alarm, siteid, with_room=len( sites) > 1,
+            default_room=default_room) for alarm in alarms ]
         if len( parts) == 1: return parts[0]
         return _('{room} {first_items} and {last_item}').format(
             room=self.get_room_name( list( sites)[0].site.siteid) if len( sites) == 1 else '',
@@ -217,9 +217,9 @@ class AlarmClock( MultiRoomConfig):
             last_item=parts[-1])
         
         
-    def say_alarm( self, alarm, siteid, with_room=False):
+    def say_alarm( self, alarm, siteid, with_room=False, default_room=''):
         return _("{room} {day} at {time}").format(
             day=humanize( alarm.datetime, only_days=True),
             time=say_time( alarm.datetime),
-            room=(self.get_room_name( alarm.site.siteid, siteid)
+            room=(self.get_room_name( alarm.site.siteid, siteid, default_name=default_room)
                 if with_room else ''))

@@ -37,7 +37,7 @@ def truncate_datetime( d=None, precision=60):
     'Reduce a time stamp to given precision in seconds'
     
     if not d: d = datetime.now()
-    return dt( d.year, d.month, d.day, d.hour, d.minute,
+    return datetime( d.year, d.month, d.day, d.hour, d.minute,
         d.second // precision * precision)
 
 
@@ -51,8 +51,10 @@ def humanize( time, only_days=False):
     delta_minutes = ((time - now).seconds % 3600) // 60
     
     if delta_days == 0 and not only_days:
-        hours = ngettext( "one hour", "one {hours}", delta_hours).format( hours=delta_hours)
-        minutes = ngettext( "one minute", "{min} minutes", delta_minutes).format( min=delta_minutes)
+        hours = ngettext( "one hour", "one {hours}",
+            delta_hours).format( hours=delta_hours)
+        minutes = ngettext( "one minute", "{min} minutes",
+            delta_minutes).format( min=delta_minutes)
         
         if not delta_hours and not delta_minutes: return _('now')
         if not delta_hours:
