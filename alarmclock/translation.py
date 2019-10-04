@@ -72,15 +72,15 @@ def humanize( time, only_days=False):
     delta_minutes = ((time - now).seconds % 3600) // 60
     
     if delta_days == 0 and not only_days:
-        hours = ngettext( "one", "{hours}", delta_hours).format( hours=delta_hours)
-        minutes = ngettext( "one", "{hours}", delta_minutes).format( hours=delta_minutes)
+        hours = ngettext( "one hour", "one {hours}", delta_hours).format( hours=delta_hours)
+        minutes = ngettext( "one minute", "{min} minutes", delta_minutes).format( min=delta_minutes)
         
         if not delta_hours and not delta_minutes: return _('now')
         if not delta_hours:
-            return _("in {minutes} minutes").format( minutes=minutes)
+            return _("in {minutes}").format( minutes=minutes)
         if not delta_minutes:
-            return _("in {hours} hours").format( hours=hours)
-        return _("in {hours} and {minutes} minutes").format(
+            return _("in {hours}").format( hours=hours)
+        return _("in {hours} and {minutes}").format(
             hours=hours, minutes=minutes)
         
     if delta_days <= -2: return _("{day_offset} days ago").format( day_offset=delta_days)

@@ -1,11 +1,12 @@
-import io
-import json
 from datetime import datetime as dt
 import functools
+import json
 import logging
+import os.path
 import threading
 import time
 from pydub import AudioSegment
+from tempfile import SpooledTemporaryFile
 from . translation import _, spoken_time
 from uuid import uuid4
 import wave
@@ -18,18 +19,20 @@ def truncate_date( d, precision=60):
 
 
 def edit_volume( volume, wav_path):
-    ringtone = AudioSegment.from_wav(wav_path)
+    ringtone = AudioSegment.from_wav( wav_path)
     ringtone -= ringtone.max_dBFS
     ringtone -= (100 - (volume * 0.8 + 20)) * 0.6
 
-    with wave.open( ".temporary_ringtone", 'wb') as wave_data:
-        wave_data.setnchannels( ringtone.channels)
-        wave_data.setsampwidth( ringtone.sample_width)
-        wave_data.setframerate( ringtone.frame_rate)
-        wave_data.setnframes( int( ringtone.frame_count()))
-        wave_data.writeframesraw( ringtone._data)
+    with SpooledTemporaryFile() as temp:
+        with wave.open( temp, 'wb') as wave_data:
+            wave_data.setnchannels( ringtone.channels)
+            wave_data.setsampwidth( ringtone.sample_width)
+            wave_data.setframerate( ringtone.frame_rate)
+            wave_data.setnframes( int( ringtone.frame_count()))
+            wave_data.writeframesraw( ringtone._data)
 
-    with open( ".temporary_ringtone", "rb") as f: return f.read()
+            temp.seek(0)
+            return temp.read()
 
 
 class Site:
@@ -91,14 +94,15 @@ class AlarmControl:
         for siteid in config.sites: self.add_site( siteid)
 
         self.alarms = []
-        with io.open( self.SAVED_ALARMS_PATH, "r") as f:
-            for alarm_dict in json.load( f):
-                alarm_dict['site'] = self.sites[ alarm_dict['site']]
-                alarm = Alarm( **alarm_dict)
-                if not alarm.missed:
-                    self.alarms.append( alarm)
-                    self.log.debug( 'Restored: %s', alarm)
-        self.save()
+        if os.path.isfile( self.SAVED_ALARMS_PATH):
+            with open( self.SAVED_ALARMS_PATH, "r") as f:
+                for alarm_dict in json.load( f):
+                    alarm_dict['site'] = self.sites[ alarm_dict['site']]
+                    alarm = Alarm( **alarm_dict)
+                    if not alarm.missed:
+                        self.alarms.append( alarm)
+                        self.log.debug( 'Restored: %s', alarm)
+            self.save()
         
         self.clock_thread = threading.Thread( target=self.clock, daemon=True)
         self.clock_thread.start()
@@ -112,7 +116,7 @@ class AlarmControl:
 
     def add_site( self, siteid):
         room = self.config.sites.get( siteid, 'DEFAULT')
-        ringing_volume = self.config[ room].getint( 'ringing_volume', 80)
+        ringing_volume = self.config[ room].getint( 'ringing_volume', 60)
         self.sites[siteid] = Site( siteid,
             self.config[ room].getboolean( 'ringtone_status', True),
             self.config[ room].getint( 'ringing_timeout', 30),
@@ -272,16 +276,18 @@ class AlarmControl:
 
 
     def save( self):
-        with io.open( self.SAVED_ALARMS_PATH, "w") as f:
+        with open( self.SAVED_ALARMS_PATH, "w") as f:
             f.write(json.dumps( [ alarm.as_dict() for alarm in self.alarms ]))
         self.log.debug( 'Saved %d alarms', len( self.alarms))
 
 
     def get_alarms( self, missed=False):
-        return filter( lambda alarm: alarm.missed == missed, self.alarms)
+        alarms = filter( lambda alarm: alarm.missed == missed, self.alarms)
+        return alarms
 
 
     def delete_alarms( self, alarms):
-        self.alarms = [ a for a in self.alarms if a not in alarms ]
-        self.log.debug( 'Deleted %d alarms', len( alarms))
+        to_delete = set( alarms)
+        self.alarms = [ a for a in self.alarms if a not in to_delete ]
+        self.log.debug( 'Deleted %d alarms', len( to_delete))
         self.save()

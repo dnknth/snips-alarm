@@ -2,12 +2,9 @@
 
 from alarmclock.alarmclock import AlarmClock, SkillError
 from alarmclock.translation import _
-import json
 import logging
-import paho.mqtt.client as mqtt
 from snipsclient import Client
 from snipsclient.intent import parse_intent
-import toml
 
 
 PREFIX = "domi:"
@@ -49,11 +46,11 @@ on( 'answerAlarm', alarmclock.answer_alarm)
 
 
 @mqtt_client.on_intent( PREFIX + 'deleteAlarms', payload_converter=parse_intent)
-def delete_alarms_try( client, userdata, msg):
+def delete_alarms( client, userdata, msg):
 
     try:
         # delete alarms with the given properties
-        alarms, response = alarmclock.delete_alarms_try( client, userdata, msg)
+        alarms, response = alarmclock.find_deleteable( client, userdata, msg)
 
         if not alarms:
             return client.end_session( msg.payload.session_id, response)
@@ -69,7 +66,7 @@ def delete_alarms_try( client, userdata, msg):
 
 
 @mqtt_client.on_intent( PREFIX + 'confirmAlarm', payload_converter=parse_intent)
-def delete_alarms( client, userdata, msg):
+def confirm_delete( client, userdata, msg):
 
     if msg.payload.custom_data:
         answer = msg.payload.slot_values.get('answer')

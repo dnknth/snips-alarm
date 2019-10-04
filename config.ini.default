@@ -19,7 +19,7 @@
 
 [DEFAULT]
 ringtone_path = resources/alarm-sound.wav
-ringing_volume = 80
+ringing_volume = 60
 ringing_timeout = 30
 ringtone_status = on
 

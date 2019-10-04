@@ -1,37 +1,20 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 set -e
 
-# Copy config.ini.default if config.ini doesn't exist.
-if [ ! -e config.ini ]
-then
-    cp config.ini.default config.ini
-fi
+VENV="venv"
 
-PYTHON=`which python3`
-VENV=venv
+if which python3 > /dev/null ; then
 
-if [ -f "$PYTHON" ]
-then
-
-    if [ ! -d $VENV ]
-    then
-        # Create a virtual environment if it doesn't exist.
-        $PYTHON -m venv $VENV
-    fi
+    # Create a virtual environment if it doesn't exist.
+    [ -d $VENV ] || $PYTHON -m venv $VENV
 
     # Activate the virtual environment and install requirements.
     . $VENV/bin/activate
     pip3 install -r requirements.txt
-
 else
-    >&2 echo "Cannot find Python 3. Please install it."
+    >&2 echo "Cannot find Python3. Please install it."
 fi
 
-if [ ! -f ./.saved_alarms.json ]; then
-    echo '[]' > .saved_alarms.json
-fi
-
-if [ ! -f ./.temporary_ringtone ]; then
-    touch .temporary_ringtone
-fi
+# Create empty config.ini if it does not exist.
+[ -f config.ini ] || touch config.ini
