@@ -21,7 +21,6 @@
 ringtone_path = resources/alarm-sound.wav
 ringing_volume = 60
 ringing_timeout = 30
-ringtone_status = on
 
 snooze_state = off
 snooze_default_duration = 5

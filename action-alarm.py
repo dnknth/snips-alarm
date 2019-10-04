@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-from alarmclock.alarmclock import AlarmClock, SkillError
+from alarmclock.alarmclock import AlarmClock, SnipsError
 from alarmclock.translation import _
 import logging
-from snipsclient import Client
-from snipsclient.intent import parse_intent
+from snips_skill import Client
+from snips_skill.intent import parse_intent
 
 
 PREFIX = "domi:"
@@ -31,7 +31,7 @@ def on( intent, handler):
         try:
             client.end_session( msg.payload.session_id, 
                 handler( client, userdata, msg))
-        except SkillError as e:
+        except SnipsError as e:
             client.end_session( msg.payload.session_id, str( e))
 
     mqtt_client.on_intent( PREFIX + intent, 
@@ -61,7 +61,7 @@ def delete_alarms( client, userdata, msg):
             [PREFIX + 'confirmAlarm'],
             custom_data=[ a.uuid for a in alarms ])
             
-    except SkillError as e:
+    except SnipsError as e:
         client.end_session( msg.payload.session_id, str( e))
 
 

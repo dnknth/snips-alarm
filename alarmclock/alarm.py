@@ -7,15 +7,9 @@ import threading
 import time
 from pydub import AudioSegment
 from tempfile import SpooledTemporaryFile
-from . translation import _, spoken_time
+from . translation import _, say_time, truncate_datetime
 from uuid import uuid4
 import wave
-
-
-def truncate_date( d, precision=60):
-    'Reduce a time stamp to given precision in seconds'
-    return dt( d.year, d.month, d.day, d.hour, d.minute,
-        d.second // precision * precision)
 
 
 def edit_volume( volume, wav_path):
@@ -37,18 +31,16 @@ def edit_volume( volume, wav_path):
 
 class Site:
 
-    def __init__( self, siteid, ringtone_status, ringing_timeout, ringtone_wav):
+    def __init__( self, siteid, ringing_timeout, ringtone_wav):
         self.siteid = siteid
         self.ringing_timeout = ringing_timeout
-        self.ringtone_status = ringtone_status
         self.ringtone_wav = ringtone_wav
         self.ringing_alarm = None
         self.ringtone_id = None
         self.timeout_thread = None
         self.session_pending = False
         
-    def __repr__( self):
-        return "<Site '%s' (%s)>" % (self.siteid, 'on' if self.ringtone_status else 'off')
+    def __repr__( self): return self.siteid
 
 
 class Alarm:
@@ -118,7 +110,6 @@ class AlarmControl:
         room = self.config.sites.get( siteid, 'DEFAULT')
         ringing_volume = self.config[ room].getint( 'ringing_volume', 60)
         self.sites[siteid] = Site( siteid,
-            self.config[ room].getboolean( 'ringtone_status', True),
             self.config[ room].getint( 'ringing_timeout', 30),
             edit_volume( ringing_volume,
                 self.config[ room].get( 'ringtone_path', self.RING_TONE)))
@@ -132,7 +123,7 @@ class AlarmControl:
         """
 
         while True:
-            now = truncate_date( dt.now(), self.TICKS)
+            now = truncate_datetime( None, self.TICKS)
             for alarm in self.alarms:
                 if not alarm.passed and alarm.datetime == now:
                     alarm.passed = True
@@ -141,19 +132,17 @@ class AlarmControl:
 
 
     def start_ringing( self, alarm, now):
-        site = alarm.site
-        if site.ringtone_status:
-            self.temp_memory[site.siteid] = { 'alarm': now }
-            topic = 'hermes/audioServer/{siteId}/playFinished'.format( siteId=site.siteid)
-            self.log.debug( "Adding callback for: %s", topic)
-            self.mqtt_client.subscribe( [( topic, 1) ])
-            self.mqtt_client.message_callback_add( topic, self.on_message_playfinished)
-            self.log.info( "Ringing on %s", site)
-            self.ring( site)
-            site.ringing_alarm = alarm
-            site.timeout_thread = threading.Timer(
-                site.ringing_timeout, functools.partial( self.timeout_reached, site))
-            site.timeout_thread.start()
+        self.temp_memory[ alarm.site.siteid] = { 'alarm': now }
+        topic = 'hermes/audioServer/{siteId}/playFinished'.format( siteId=alarm.site.siteid)
+        self.log.debug( "Adding callback for: %s", topic)
+        self.mqtt_client.subscribe( [( topic, 1) ])
+        self.mqtt_client.message_callback_add( topic, self.on_message_playfinished)
+        self.log.info( "Ringing on %s", alarm.site)
+        self.ring( alarm.site)
+        alarm.site.ringing_alarm = alarm
+        alarm.site.timeout_thread = threading.Timer(
+            alarm.site.ringing_timeout, functools.partial( self.timeout_reached, alarm.site))
+        alarm.site.timeout_thread.start()
 
 
     def ring( self, site):
@@ -176,7 +165,7 @@ class AlarmControl:
         self.log.info( "Stop ringing on %s", site)
         site.ringing_alarm = None
         site.ringtone_id = None
-        site.timeout_thread.cancel()  # cancel timeout thread from siteId
+        site.timeout_thread.cancel()
         site.timeout_thread = None
         self.mqtt_client.message_callback_remove(
             'hermes/audioServer/{site_id}/playFinished'.format( site_id=site.siteid))
@@ -254,8 +243,7 @@ class AlarmControl:
 
         else:
             self.mqtt_client.end_session( payload['sessionId'],
-                _("Alarm is now ended. It is {time}.").format(
-                    time=spoken_time( dt.now())))
+                _("Alarm is now ended. It is {time}.").format( time=say_time()))
 
 
     def on_session_ended( self, client, userdata, msg):
