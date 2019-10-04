@@ -1,11 +1,10 @@
 from datetime import datetime
 import gettext, os
-import arrow.locales
+import locale
 
 
-LANGUAGE = "de"
-TRANSLATION = gettext.translation( 'messages', languages=[LANGUAGE],
-    localedir=os.path.join( os.path.dirname( __file__), 'locales'))
+TRANSLATION = gettext.translation( 'messages',
+    localedir=os.path.join( os.path.dirname( __file__), 'locale'))
 
 
 # Install translation functions
@@ -13,29 +12,26 @@ _ = TRANSLATION.gettext
 ngettext = TRANSLATION.ngettext
 
 
-TIME_LOCALES = {
-    'de': arrow.locales.DeutschBaseLocale,
-    'en': arrow.locales.EnglishLocale,
-    'es': arrow.locales.SpanishLocale,
-    'fr': arrow.locales.FrenchLocale,
-    'it': arrow.locales.ItalianLocale,
-    'jp': arrow.locales.JapaneseLocale,
-}
+# Get localized day & month names
+locale.resetlocale() # Duh. Why is this needed?
+DAY_NAMES = [ locale.nl_langinfo( day) for day in range( locale.DAY_1, locale.DAY_7 + 1) ]
+DAY_NAMES = DAY_NAMES[1:] + [DAY_NAMES[-1]]
+MONTH_NAMES = [ locale.nl_langinfo( mon) for mon in range( locale.MON_1, locale.MON_12 + 1) ]
 
 
 ROOM_PREPOSITIONS = {
     # Map translated room names to room names with prepositions
-    # for languages that use genders for room names
-    _("office"):      _("in the office"),
-    _("dining room"): _("in the dining room"),
+    # for languages that have genders for room names
     _("bathroom"):    _("in the bathroom"),
-    _("kid's room"):  _("in the kid's room"),
-    _("livingroom"):  _("in the livingroom"),
     _("bedroom"):     _("in the bedroom"),
+    _("dining room"): _("in the dining room"),
+    _("livingroom"):  _("in the livingroom"),
+    _("kid's room"):  _("in the kid's room"),
     _("kitchen"):     _("in the kitchen"),
+    _("office"):      _("in the office"),
 }
 
-# Remove captitalization in keys
+# Remove captitalization in translated keys
 ROOM_PREPOSITIONS = { k.lower(): v for k, v in ROOM_PREPOSITIONS.items() }
 
 # FIXME This may be wrong for arbitrary rooms, e.g. "on the terrace"
@@ -43,7 +39,7 @@ DEFAULT_PREPOSITION = _("in the {room}")
 
 
 def preposition( room):
-    "Add an 'in' preposition to a room name"
+    "Add an 'in the' preposition to a room name"
     return ROOM_PREPOSITIONS.get( room.lower(),
         DEFAULT_PREPOSITION.format( room=room))
 
@@ -67,7 +63,7 @@ def get_now_time():
     
 
 def humanize( time, only_days=False):
-    "Describe the time spam until a given time in understandable words"
+    "Describe the time span until a given time in human-understandable words"
     
     now = get_now_time()
     
@@ -97,38 +93,23 @@ def humanize( time, only_days=False):
     if delta_days == 1: return _("tomorrow")
     if delta_days == 2: return _("the day after tomorrow")
     
-    alarm_weekday = TIME_LOCALES[ LANGUAGE].day_names[ time.weekday()]
+    alarm_weekday = DAY_NAMES[ time.weekday()]
     if delta_days <= 6: return _("on {weekday}").format( weekday=alarm_weekday)
     if delta_days == 7: return _("on {weekday} next week").format( weekday=alarm_weekday)
 
     return _("on {weekday}, the {day}. of {month}").format(
                 weekday=alarm_weekday, day=time.day,
-                month=TIME_LOCALES[ LANGUAGE].month_names[time.month])
+                month=MONTH_NAMES[time.month + 1])
 
 
-def get_interval_part( from_time, to_time):
-
-    to_part = ""
-    from_word = _("as of")
-    future_part_to = ""
-
-    if to_time:
-        from_word = _("from")
-        if to_time.date() != get_now_time().date():
-            future_part_to = humanize( to_time, only_days=True)
-        to_part = _("to {future_part_to} {time}").format( 
-                        future_part_to=future_part_to,
-                        time=spoken_time(to_time))
-        
-    from_part = ""
-    future_part_from = ""
-    if from_time:
-        if from_time.date() != get_now_time().date():
-            future_part_from = humanize(from_time, only_days=True)
-
-        from_part = _("{from_word} {future_part_from} {time}").format(
-                         from_word=from_word,
-                         future_part_from=future_part_from,
-                         time=spoken_time(from_time))
-
-    return from_part + " " + to_part
+if __name__ == '__main__': # Test code
+    from datetime import timedelta
+    
+    now = get_now_time()
+    
+    print( DAY_NAMES[ now.weekday()])
+    print( MONTH_NAMES[ now.month - 1])
+    
+    print( spoken_time( now))
+    print( humanize( now + timedelta( days=14)))
+    

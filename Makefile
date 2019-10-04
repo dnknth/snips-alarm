@@ -1,8 +1,8 @@
 BIN = $(PWD)/.venv3/bin
 GETTEXT = /usr/local/opt/gettext
 
-POT = alarmclock/locales/messages.pot
-LOCALE = alarmclock/locales/de/LC_MESSAGES/messages.po
+POT = alarmclock/locale/messages.pot
+LOCALE = alarmclock/locale/de/LC_MESSAGES/messages.po
 
 run: .venv3 $(LOCALE:.po=.mo) $(POT)
 	PYTHONPATH=$(PWD)/../snipsclient $(BIN)/python3 action-alarm.py -v3
