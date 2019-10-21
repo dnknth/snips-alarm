@@ -1,9 +1,10 @@
 # snips-alarm: Timers and alarms
-A skill for [Snips.ai](https://snips.ai/) with a fully controllable alarm clock.
+A skill for [Snips.ai](https://snips.ai/) with a multi-room alarm clock.
+This skill started as a complete re-write of [MrJohnZoidberg/Snips-Wecker](https://github.com/MrJohnZoidberg/Snips-Wecker) with bug-fixes.
 
-- Multi-room support
+## Features
 - Customizable (ringtone sound, volume, ringing timeout, rooms)
-- Fully localized. Currently, a German translation is included.
+- Fully localized. Currently, a German translation is included. Other translations can be easily added. Contributions are appreciated. 
 
 ## Configuration
 
@@ -30,6 +31,8 @@ that is used in the `bind` directive of `/etc/snips/toml` for that site.
 ## Usage
 
 ### Example sentences
+
+(German examples taken from [Snips-Wecker](https://github.com/MrJohnZoidberg/Snips-Wecker/README.md))
 
 **New alarm:**
 
@@ -87,12 +90,20 @@ that is used in the `bind` directive of `/etc/snips/toml` for that site.
 - *Sage alle verpassten Alarme von `diesem Mittwoch`.*
 - *Habe ich `letzte Woche` im `Kinderzimmer` einen Alarm verpasst?*
 
-
 ### While ringing
 
 You can stop an alarm by saying a hotword, usually "Hey Snips!".
 
-## To do
+## Translations
 
-- New setting: snooze en/disabled (then don't end session)
-- Maybe: periodical alarms (daily, weekly); before: change clock thread to schedule module
+By default, translations for the system locale are used. To use a specific language,
+set the `LANG` environment variable to the desired language, e.g. `fr_FR.UTF.8`.
+Translation files are found in the [locales](alarmclock/locales) folder.
+No programming skills are required to create a new translation.
+
+Instructions:
+- Get [POEdit](https://poedit.net).
+- Use it to open [messages.pot](alarmclock/locales/messages.pot).
+- Start translating.
+- Place the result in `localedir/language/LC_MESSAGES/messages.{mp}o`.
+- Send me the new translation, please.
