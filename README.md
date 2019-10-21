@@ -26,8 +26,8 @@ option.
 For site-specific settings, add a section with the site name, e.g. `[bedroom]`
 and custom options. The section name must conincide with Snips' vocabulary.
 If a room is unknown, you'll hear an error message with the correct room name.
-For each site section, a `site_id` option is required, providing the ID
-that is used in the `bind` directive of `/etc/snips/toml` for that site.
+For each site section, a `site_id` option is required, matching the ID
+in the `bind` directive of `/etc/snips.toml` for that site.
 
 ## Usage
 
@@ -98,7 +98,7 @@ You can stop an alarm by saying a hotword, usually "Hey Snips!".
 ## Translations
 
 By default, translations for the system locale are used. To use a specific language,
-set the `LANG` environment variable to the desired language, e.g. `fr_FR.UTF.8`.
+set the `LANG` environment variable to the desired language, e.g. `fr_FR.UTF-8`.
 Translation files are found in the [locale](alarmclock/locale) folder.
 No programming skills are required to create a new translation.
 
