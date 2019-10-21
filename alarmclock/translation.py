@@ -45,7 +45,6 @@ def humanize( time, only_days=False):
     "Describe the time span until a given time in human-understandable words"
     
     now = truncate_datetime()
-    
     delta_days    = (time - now).days
     delta_hours   = (time - now).seconds // 3600
     delta_minutes = ((time - now).seconds % 3600) // 60

@@ -130,7 +130,7 @@ class AlarmClock( MultiRoomConfig):
                 room=room, num=len( alarms))
 
 
-    def answer_alarm( self, client, userdata, msg):
+    def answer_alarm( self, client, userdata, msg): # TODO test this
 
         if not msg.payload.slots: raise NO_CLUE
         

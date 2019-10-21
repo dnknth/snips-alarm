@@ -4,7 +4,6 @@ from alarmclock.alarmclock import AlarmClock, SnipsError
 from alarmclock.translation import _
 import logging
 from snips_skill import Client
-from snips_skill.intent import parse_intent
 
 
 PREFIX = "domi:"
@@ -34,8 +33,7 @@ def on( intent, handler):
         except SnipsError as e:
             client.end_session( msg.payload.session_id, str( e))
 
-    mqtt_client.on_intent( PREFIX + intent, 
-        payload_converter=parse_intent)( wrapper)
+    mqtt_client.on_intent( PREFIX + intent)( wrapper)
 
 
 on( 'newAlarm', alarmclock.new_alarm)
@@ -45,7 +43,7 @@ on( 'getMissedAlarms', alarmclock.get_missed_alarms)
 on( 'answerAlarm', alarmclock.answer_alarm)
 
 
-@mqtt_client.on_intent( PREFIX + 'deleteAlarms', payload_converter=parse_intent)
+@mqtt_client.on_intent( PREFIX + 'deleteAlarms')
 def delete_alarms( client, userdata, msg):
 
     try:
@@ -65,7 +63,7 @@ def delete_alarms( client, userdata, msg):
         client.end_session( msg.payload.session_id, str( e))
 
 
-@mqtt_client.on_intent( PREFIX + 'confirmAlarm', payload_converter=parse_intent)
+@mqtt_client.on_intent( PREFIX + 'confirmAlarm')
 def confirm_delete( client, userdata, msg):
 
     if msg.payload.custom_data:
