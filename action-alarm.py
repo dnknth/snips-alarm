@@ -6,7 +6,7 @@ import logging
 from snips_skill import Client
 
 
-PREFIX = "domi:"
+PREFIX = "dnknth:"
 
 
 # Map verbosity argument choices to log levels

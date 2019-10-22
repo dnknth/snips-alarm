@@ -1,7 +1,7 @@
 # snips-alarm: Timers and alarms
 
 A skill for [Snips.ai](https://snips.ai/) with a multi-room alarm clock.
-It started as a complete re-write of [MrJohnZoidberg/Snips-Wecker](https://github.com/MrJohnZoidberg/Snips-Wecker) with bug-fixes.
+This is a drop-in replacement for [MrJohnZoidberg/Snips-Wecker](https://github.com/MrJohnZoidberg/Snips-Wecker) with bug-fixes.
 
 ## Features
 - Customizable (ringtone sound, volume, ringing timeout, rooms)
@@ -9,8 +9,8 @@ It started as a complete re-write of [MrJohnZoidberg/Snips-Wecker](https://githu
 
 ## Configuration
 
-`config.ini` contains the skill's settings. This file must exist but may be empty. 
-See `config.ini.default` for a list of options with default values.
+[config.ini](config.ini) contains the skill's settings. This file must exist but may be empty. 
+See [config.ini.default](config.ini.default) for a list of options with default values.
 The most important ones in the `[DEFAULT]` section are:
 
 | Parameter name  | Default | Range   | Description                                     |
@@ -20,8 +20,8 @@ The most important ones in the `[DEFAULT]` section are:
 | ringtone_path   | resources/alarm-sound.wav |   | Path to a WAV ring tone file        |
 
 Options in the `[DEFAULT]` section are used across all sites, unless they are
-overridden in a site specific section. Default values are used for all missing 
-option.
+overridden in a site specific section. Sensible values are used for all missing 
+options.
 
 For site-specific settings, add a section with the site name, e.g. `[bedroom]`
 and custom options. The section name must conincide with Snips' vocabulary.
@@ -33,7 +33,7 @@ in the `bind` directive of `/etc/snips.toml` for that site.
 
 ### Example sentences
 
-(German examples taken from [Snips-Wecker](https://github.com/MrJohnZoidberg/Snips-Wecker/blob/master/README.md#1-example-sentences))
+(German examples courtesy of [Snips-Wecker](https://github.com/MrJohnZoidberg/Snips-Wecker/blob/master/README.md#1-example-sentences))
 
 **New alarm:**
 
@@ -93,18 +93,18 @@ in the `bind` directive of `/etc/snips.toml` for that site.
 
 ### While ringing
 
-You can stop an alarm by saying a hotword, usually "Hey Snips!".
+You can stop an alarm with the hotword, usually "Hey Snips!".
 
 ## Translations
 
-By default, translations for the system locale are used. To use a specific language,
-set the `LANG` environment variable to the desired language, e.g. `fr_FR.UTF-8`.
+By default, the system language is used. For other languages,
+set the `LANG` environment variable appropriately, e.g. to `fr_FR.UTF-8`.
 Translation files are found in the [locale](alarmclock/locale) folder.
-No programming skills are required to create a new translation.
 
-Instructions:
+No programming is necessary to create a new translation:
 - Get [POEdit](https://poedit.net).
 - Use it to open [messages.pot](alarmclock/locale/messages.pot).
-- Start translating.
-- Place the result in `localedir/language/LC_MESSAGES/messages.{mp}o`.
-- Send me the new translation, please.
+- Choose your language and translate 40-50 lines of text.
+- To test, place the result in `localedir/language/LC_MESSAGES/messages.{mp}o`.
+- Please share new translations. Thanks!
+
