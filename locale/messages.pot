@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-24 16:30+0200\n"
+"POT-Creation-Date: 2019-10-24 20:36+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -26,7 +26,7 @@ msgstr ""
 msgid "Sorry, I did not understand you."
 msgstr ""
 
-#: alarmclock.py:40 alarmclock.py:175 alarmclock.py:181
+#: alarmclock.py:40 alarmclock.py:175
 msgid "This time is in the past."
 msgstr ""
 
@@ -34,68 +34,76 @@ msgstr ""
 msgid "This alarm would ring now."
 msgstr ""
 
+#: alarmclock.py:44
+msgid "alert"
+msgstr ""
+
 #: alarmclock.py:45
+msgid "to alert"
+msgstr ""
+
+#: alarmclock.py:48
 #, python-brace-format
 msgid "The alarm will ring {room} {day} at {time}."
 msgstr ""
 
-#: alarmclock.py:57
+#: alarmclock.py:49
+#, python-brace-format
+msgid "The alert will start {room} {day} at {time}."
+msgstr ""
+
+#: alarmclock.py:61 alarmclock.py:79 alarmclock.py:122
 msgid "There is no alarm."
 msgstr ""
 
-#: alarmclock.py:60
+#: alarmclock.py:64
 #, python-brace-format
 msgid "There is one alarm {alarms}."
-msgid_plural "There are {num} alarms {filler} {alarms}."
+msgid_plural "There are {num} alarms {alarms}."
 msgstr[0] ""
 msgstr[1] ""
 
-#: alarmclock.py:64
-msgid ". The next three are:"
-msgstr ""
-
-#: alarmclock.py:72 alarmclock.py:95 alarmclock.py:119
-msgid "in this room"
-msgstr ""
-
-#: alarmclock.py:75 alarmclock.py:123
+#: alarmclock.py:68
 #, python-brace-format
-msgid "There is no alarm {room}."
-msgstr ""
-
-#: alarmclock.py:79
-#, python-brace-format
-msgid "The next alarm {room} starts {offset}."
-msgstr ""
-
-#: alarmclock.py:81
-#, python-brace-format
-msgid "The next alarm {room} starts {offset} at {time}."
+msgid "There are {num} alarms. The next three are: {alarms}."
 msgstr ""
 
 #: alarmclock.py:83
 #, python-brace-format
-msgid "The next alarm {room} starts at {time}."
+msgid "The next alarm {room} starts {offset}."
 msgstr ""
 
 #: alarmclock.py:85
 #, python-brace-format
+msgid "The next alarm {room} starts {offset} at {time}."
+msgstr ""
+
+#: alarmclock.py:87
+#, python-brace-format
+msgid "The next alarm {room} starts at {time}."
+msgstr ""
+
+#: alarmclock.py:89
+#, python-brace-format
 msgid "The next alarm {room} starts {day} at {time}."
 msgstr ""
 
-#: alarmclock.py:99
-#, python-brace-format
-msgid "You missed no alarm {room}."
+#: alarmclock.py:91 alarmclock.py:124
+msgid "in this room"
 msgstr ""
 
-#: alarmclock.py:102
+#: alarmclock.py:101
+msgid "You missed no alarm."
+msgstr ""
+
+#: alarmclock.py:104
 #, python-brace-format
 msgid "You missed one alarm {alarms}."
 msgid_plural "You missed {num} alarms {alarms} {filler}."
 msgstr[0] ""
 msgstr[1] ""
 
-#: alarmclock.py:109
+#: alarmclock.py:111
 msgid "and more"
 msgstr ""
 
@@ -109,6 +117,10 @@ msgstr[1] ""
 #: alarmclock.py:154 alarmclock.py:157
 #, python-brace-format
 msgid "I will wake you in {min} minutes."
+msgstr ""
+
+#: alarmclock.py:181
+msgid "This date is in the past."
 msgstr ""
 
 #: alarmclock.py:206 alarmclock.py:208
@@ -125,63 +137,63 @@ msgstr ""
 msgid "{room} {day} at {time}"
 msgstr ""
 
-#: alarm.py:242
+#: alarm.py:251
 msgid "What should the alarm do?"
 msgstr ""
 
-#: alarm.py:246
+#: alarm.py:255
 #, python-brace-format
 msgid "Alarm is now ended. It is {time}."
 msgstr ""
 
-#: translation.py:26
+#: translation.py:25
 #, python-brace-format
 msgid "one o'clock"
 msgid_plural "{hour} o'clock"
 msgstr[0] ""
 msgstr[1] ""
 
-#: translation.py:28
+#: translation.py:27
 #, python-brace-format
 msgid "{min} minute"
 msgid_plural "{min} minutes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: translation.py:33
+#: translation.py:32
 #, python-brace-format
 msgid "{minute} past {hour}"
 msgstr ""
 
-#: translation.py:53
+#: translation.py:52
 #, python-brace-format
 msgid "one hour"
 msgid_plural "one {hours}"
 msgstr[0] ""
 msgstr[1] ""
 
-#: translation.py:55
+#: translation.py:54
 #, python-brace-format
 msgid "one minute"
 msgid_plural "{min} minutes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: translation.py:58
+#: translation.py:57
 msgid "now"
 msgstr ""
 
-#: translation.py:60
+#: translation.py:59
 #, python-brace-format
 msgid "in {minutes}"
 msgstr ""
 
-#: translation.py:62
+#: translation.py:61
 #, python-brace-format
 msgid "in {hours}"
 msgstr ""
 
-#: translation.py:63
+#: translation.py:62
 #, python-brace-format
 msgid "in {hours} and {minutes}"
 msgstr ""
@@ -200,29 +212,29 @@ msgstr ""
 msgid "yesterday"
 msgstr ""
 
-#: translation.py:72
+#: translation.py:73
 msgid "today"
 msgstr ""
 
-#: translation.py:73
+#: translation.py:74
 msgid "tomorrow"
 msgstr ""
 
-#: translation.py:74
+#: translation.py:75
 msgid "the day after tomorrow"
 msgstr ""
 
-#: translation.py:77
+#: translation.py:79
 #, python-brace-format
 msgid "on {weekday}"
 msgstr ""
 
-#: translation.py:78
+#: translation.py:81
 #, python-brace-format
 msgid "on {weekday} next week"
 msgstr ""
 
-#: translation.py:80
+#: translation.py:85
 #, python-brace-format
 msgid "on {weekday}, the {day}. of {month}"
 msgstr ""

@@ -18,9 +18,10 @@
 #
 
 [DEFAULT]
-ringtone_path = resources/alarm-sound.wav
-ringing_volume = 60
-ringing_timeout = 30
+playback_alarm_wav = resources/alarm-sound.wav
+playback_alert_wav = resources/red-alert.wav
+playback_volume = 60
+playback_timeout = 30
 
 snooze_state = off
 snooze_default_duration = 5

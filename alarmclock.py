@@ -41,8 +41,14 @@ class AlarmClock( MultiRoomConfig):
         elif (alarm_time - now).seconds < 60:
             return _("This alarm would ring now.")
 
-        self.alarmctl.add_alarm( alarm_time, alarm_site_id)
-        return _("The alarm will ring {room} {day} at {time}.").format(
+        alert = (_("alert").lower() in msg.payload.input.split()
+            or _("to alert").lower() in msg.payload.input.split())
+        self.alarmctl.add_alarm( alarm_time, alarm_site_id, alert=alert)
+        
+        text = _("The alarm will ring {room} {day} at {time}.")
+        if alert: text = _("The alert will start {room} {day} at {time}.")
+        
+        return text.format(
             day=humanize( alarm_time),
             time=say_time( alarm_time),
             room=room)
@@ -50,18 +56,17 @@ class AlarmClock( MultiRoomConfig):
 
     def get_alarms( self, client, userdata, msg):
         
-        room = self.get_room_slot( msg.payload)
         alarms = self.find_alarms( msg.payload)
+        if not alarms: return _("There is no alarm.")
 
-        if not alarms:
-            return _("There is no alarm.").format( room=room)
-
-        response = ngettext(
-            "There is one alarm {alarms}.",
-            "There are {num} alarms {filler} {alarms}.", len( alarms))
-                
-        return response.format( num=len( alarms), room=room,
-            filler=_('. The next three are:') if len( alarms) > 3 else '',
+        if len( alarms) > 3:
+            response = _('There are {num} alarms. The next three are: {alarms}.')
+        else:
+            response = ngettext(
+                "There is one alarm {alarms}.",
+                "There are {num} alarms {alarms}.", len( alarms))
+        
+        return response.format( num=len( alarms),
             alarms=self.say_alarms( alarms[:3], msg.payload.site_id))
 
 
@@ -69,10 +74,8 @@ class AlarmClock( MultiRoomConfig):
         
         site_id = self.get_site_id( msg.payload) or msg.payload.site_id
         alarms = [ a for a in self.alarmctl.get_alarms() if a.site.siteid == site_id ]
-        room = self.get_room_slot( msg.payload, default_name=_('in this room'))
 
-        if not alarms:
-            return _("There is no alarm {room}.").format( room=room)
+        if not alarms: return _("There is no alarm.")
         
         delta = alarms[0].datetime - datetime.datetime.now()
         if delta.total_seconds() // 60 <= 15:
@@ -84,6 +87,7 @@ class AlarmClock( MultiRoomConfig):
         else:
             text = _("The next alarm {room} starts {day} at {time}.")
 
+        room = self.get_room_slot( msg.payload, default_name=_('in this room'))
         return text.format( room=room,
             offset=humanize( alarms[0].datetime),
             day=humanize( alarms[0].datetime, only_days=True),
@@ -92,12 +96,9 @@ class AlarmClock( MultiRoomConfig):
 
     def get_missed_alarms( self, client, userdata, msg):
 
-        room = self.get_room_slot( msg.payload, default_name=_('in this room'))
         alarms = self.find_alarms( msg.payload, missed=True)
-
-        if not alarms:
-            return _("You missed no alarm {room}.").format( room=room)
-            
+        if not alarms: return _("You missed no alarm.")
+        
         response = ngettext(
             "You missed one alarm {alarms}.",
             "You missed {num} alarms {alarms} {filler}.",
@@ -116,12 +117,10 @@ class AlarmClock( MultiRoomConfig):
         Otherwise all alarms will be deleted.
         """
         
-        room = self.get_room_slot( msg.payload, default_name=_('in this room'))
         alarms = self.find_alarms( msg.payload)
+        if not alarms: raise SnipsError( _("There is no alarm."))
         
-        if not alarms:
-            raise SnipsError( _("There is no alarm {room}.").format( room=room))
-        
+        room = self.get_room_slot( msg.payload, default_name=_('in this room'))
         return alarms, ngettext(
             "Do you really want to delete the alarm {day} at {time} {room}?",
             "There are {num} alarms. Are you sure?", len( alarms)).format(
@@ -178,7 +177,7 @@ class AlarmClock( MultiRoomConfig):
                 else:
                     alarm_date = alarm_time.date()
                     if (alarm_date - now.date()).days < 0:
-                        raise SnipsError( _("This time is in the past."))
+                        raise SnipsError( _("This date is in the past."))
                     alarms = filter( lambda a: a.datetime.date() == alarm_date, alarms)
             
             elif payload.slot_values['time'].kind == "TimeInterval":

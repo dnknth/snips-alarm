@@ -62,20 +62,26 @@ def humanize( time, only_days=False):
         return _("in {hours} and {minutes}").format(
             hours=hours, minutes=minutes)
         
-    if delta_days <= -2: return _("{day_offset} days ago").format( day_offset=delta_days)
+    if delta_days <= -2:
+        return _("{day_offset} days ago").format( day_offset=delta_days)
     if delta_days == -1 and time.date() == now.date():
         delta_hours = (now - time).seconds // 3600
         return _("{hours} hours ago").format( hours=delta_hours)
     if delta_days == -1 and (time.date() - now.date()).days == -1:
         return _("yesterday")
+    
     if delta_days == 0: return _("today")
     if delta_days == 1: return _("tomorrow")
     if delta_days == 2: return _("the day after tomorrow")
     
     alarm_weekday = DAY_NAMES[ time.weekday()]
-    if delta_days <= 6: return _("on {weekday}").format( weekday=alarm_weekday)
-    if delta_days == 7: return _("on {weekday} next week").format( weekday=alarm_weekday)
+    if delta_days <= 6:
+        return _("on {weekday}").format( weekday=alarm_weekday)
+    if delta_days == 7:
+        return _("on {weekday} next week").format(
+            weekday=alarm_weekday)
 
+    # FIXME pronounciation mistakes in translation
     return _("on {weekday}, the {day}. of {month}").format(
                 weekday=alarm_weekday, day=time.day,
                 month=MONTH_NAMES[time.month - 1])

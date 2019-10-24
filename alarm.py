@@ -31,11 +31,12 @@ def edit_volume( volume, wav_path):
 
 class Site:
 
-    def __init__( self, siteid, ringing_timeout, ringtone_wav):
+    def __init__( self, siteid, playback_timeout, alarm_wav, alert_wav):
         self.siteid = siteid
-        self.ringing_timeout = ringing_timeout
-        self.ringtone_wav = ringtone_wav
-        self.ringing_alarm = None
+        self.playback_timeout = playback_timeout
+        self.alarm_wav = alarm_wav
+        self.alert_wav = alert_wav
+        self.playback_alarm = None
         self.ringtone_id = None
         self.timeout_thread = None
         self.session_pending = False
@@ -47,7 +48,9 @@ class Alarm:
     
     FORMAT = "%Y-%m-%d %H:%M"
     
-    def __init__( self, datetime=None, site=None, missed=False, uuid=None, **kwargs):
+    def __init__( self, datetime=None, site=None,
+        missed=False, uuid=None, alert=False, **kwargs):
+        
         if type( datetime) is str:
             self.datetime = dt.strptime( datetime, self.FORMAT)
         else: self.datetime = datetime
@@ -57,6 +60,7 @@ class Alarm:
         self.passed = False
         self.ringing = False
         self.uuid = uuid or str( uuid4())
+        self.alert = alert
 
 
     def __repr__( self):
@@ -67,13 +71,15 @@ class Alarm:
         return { 'datetime': dt.strftime( self.datetime, self.FORMAT),
                  'site': self.site.siteid, # FIXME ugly hack
                  'missed': self.missed,
-                 'uuid': self.uuid }
+                 'uuid': self.uuid,
+                 'alert': self.alert }
 
 
 class AlarmControl:
     
     SAVED_ALARMS_PATH = ".saved_alarms.json"
-    RING_TONE = "resources/alarm-sound.wav"
+    ALARM_TONE = "resources/alarm-sound.wav"
+    ALERT_TONE = "resources/red-alert.wav"
     TICKS = 2
     
     def __init__( self, config, mqtt_client):
@@ -108,11 +114,13 @@ class AlarmControl:
 
     def add_site( self, siteid):
         room = self.config.sites.get( siteid, 'DEFAULT')
-        ringing_volume = self.config[ room].getint( 'ringing_volume', 60)
+        playback_volume = self.config[ room].getint( 'playback_volume', 60)
         self.sites[siteid] = Site( siteid,
-            self.config[ room].getint( 'ringing_timeout', 30),
-            edit_volume( ringing_volume,
-                self.config[ room].get( 'ringtone_path', self.RING_TONE)))
+            self.config[ room].getint( 'playback_timeout', 30),
+            edit_volume( playback_volume,
+                self.config[ room].get( 'playback_alarm_wav', self.ALARM_TONE)),
+            edit_volume( playback_volume,
+                self.config[ room].get( 'playback_alert_wav', self.ALERT_TONE)))
         self.log.debug( 'Added: %s', self.sites[siteid])
 
 
@@ -138,10 +146,10 @@ class AlarmControl:
         self.mqtt_client.subscribe( [( topic, 1) ])
         self.mqtt_client.message_callback_add( topic, self.on_message_playfinished)
         self.log.info( "Ringing on %s", alarm.site)
+        alarm.site.playback_alarm = alarm
         self.ring( alarm.site)
-        alarm.site.ringing_alarm = alarm
         alarm.site.timeout_thread = threading.Timer(
-            alarm.site.ringing_timeout, functools.partial( self.timeout_reached, alarm.site))
+            alarm.site.playback_timeout, functools.partial( self.timeout_reached, alarm.site))
         alarm.site.timeout_thread.start()
 
 
@@ -151,19 +159,20 @@ class AlarmControl:
         :param site: The site object (site of the user)
         :return: Nothing
         """
-        site.ringtone_id = self.mqtt_client.play_sound( site.siteid, site.ringtone_wav)
+        wav = site.alert_wav if site.playback_alarm.alert else site.alarm_wav
+        site.ringtone_id = self.mqtt_client.play_sound( site.siteid, wav)
 
 
     def stop_ringing( self, site):
         """
-        Sets self.ringing_dict[siteId] to False so on_message_playfinished won't start a new ring.
+        Sets self.playback_dict[siteId] to False so on_message_playfinished won't start a new ring.
         :param site: The site object (site of the user)
         :return: Nothing
         """
 
         # TODO: delete alarm after captcha or snooze or sth
         self.log.info( "Stop ringing on %s", site)
-        site.ringing_alarm = None
+        site.playback_alarm = None
         site.ringtone_id = None
         site.timeout_thread.cancel()
         site.timeout_thread = None
@@ -173,13 +182,13 @@ class AlarmControl:
 
     def timeout_reached( self, site):
         self.log.debug( "Timeout on %s", site)
-        site.ringing_alarm.missed = True
+        site.playback_alarm.missed = True
         self.stop_ringing( site)
 
 
     def on_message_playfinished( self, client, userdata, msg):
         """
-        Called when ringtone was played on specific site. If self.ringing_dict[siteId] is True, the
+        Called when ringtone was played on specific site. If self.playback_dict[siteId] is True, the
         ringtone is played again.
         :param client: MQTT client object (from paho)
         :param userdata: MQTT userdata (from paho)
@@ -190,8 +199,8 @@ class AlarmControl:
         self.log.debug( 'Received message: %s', msg.topic)
         payload = json.loads( msg.payload.decode())
         site = self.sites[ payload['siteId']]
-        if site.ringing_alarm and site.ringtone_id == payload['id']:
-            self.ring(site)
+        if site.playback_alarm and site.ringtone_id == payload['id']:
+            self.ring( site)
 
 
     def on_message_hotword( self, client, userdata, msg):
@@ -209,7 +218,7 @@ class AlarmControl:
         if site_id not in self.sites: return
         
         site = self.sites[ site_id]
-        if site.ringing_alarm:
+        if site.playback_alarm:
             self.stop_ringing(site)
             site.session_pending = True  # TODO
             self.mqtt_client.message_callback_add(
@@ -239,7 +248,7 @@ class AlarmControl:
             self.mqtt_client.end_session( payload['sessionId'])
             self.mqtt_client.start_session( site_id,
                 self.mqtt_client.action_init(
-                    _("What should the alarm do?"), ["domi:answerAlarm"] ))
+                    _("What should the alarm do?"), ["dnknth:answerAlarm"] ))
 
         else:
             self.mqtt_client.end_session( payload['sessionId'],
@@ -254,9 +263,9 @@ class AlarmControl:
             del self.temp_memory[ site_id]
         
 
-    def add_alarm( self, datetime, siteid):
+    def add_alarm( self, datetime, siteid, alert):
         if siteid not in self.sites: self.add_site( siteid)
-        alarm = Alarm( datetime, self.sites[ siteid])
+        alarm = Alarm( datetime, self.sites[ siteid], alert=alert)
         self.alarms.append( alarm)
         self.alarms.sort( key=lambda alarm: alarm.datetime)
         self.log.debug( 'Added: %s', alarm)

@@ -15,9 +15,9 @@ The most important ones in the `[DEFAULT]` section are:
 
 | Parameter name  | Default | Range   | Description                                     |
 |-----------------|---------|---------|-------------------------------------------------|
-| ringing_volume  | 60      | 0 - 100 | Volume of the ringtone                          |
-| ringing_timeout | 30     | > 0      | Time in seconds until ringing stops             |
-| ringtone_path   | resources/alarm-sound.wav |   | Path to a WAV ring tone file        |
+| playback_volume  | 60      | 0 - 100 | Volume of the ringtone                          |
+| playback_timeout | 30     | > 0      | Time in seconds until ringing stops             |
+| playback_alarm_wav   | resources/alarm-sound.wav |   | Path to a WAV ring tone file        |
 
 Options in the `[DEFAULT]` section are used across all sites, unless they are
 overridden in a site specific section. Sensible values are used for all missing 
