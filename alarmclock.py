@@ -4,8 +4,8 @@ import configparser
 import datetime
 import logging
 
-from . alarm import AlarmControl
-from . translation import _, ngettext, humanize, say_time, truncate_datetime
+from alarm import AlarmControl
+from translation import _, ngettext, humanize, say_time, truncate_datetime
 
 from snips_skill.multi_room import MultiRoomConfig, SnipsError
 
@@ -21,7 +21,7 @@ class AlarmClock( MultiRoomConfig):
         self.alarmctl = AlarmControl( self.config, mqtt_client)
 
 
-    # See ../resources/Snips-Alarmclock-newAlarm.png
+    # See resources/Snips-Alarmclock-newAlarm.png
     def new_alarm( self, client, userdata, msg):
         'Create a new alarm.'
 

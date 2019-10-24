@@ -1,8 +1,8 @@
 BIN = $(PWD)/.venv3/bin
 GETTEXT = /usr/local/opt/gettext
 
-POT = alarmclock/locale/messages.pot
-LOCALE = alarmclock/locale/de/LC_MESSAGES/messages.po
+POT = locale/messages.pot
+LOCALE = locale/de/LC_MESSAGES/messages.po
 
 
 run: .venv3 $(LOCALE:.po=.mo) $(POT)
@@ -15,11 +15,11 @@ run: .venv3 $(LOCALE:.po=.mo) $(POT)
 
 messages: $(POT)
 
-$(POT): action-alarm.py alarmclock/alarmclock.py alarmclock/alarm.py alarmclock/translation.py
+$(POT): action-alarm.py alarmclock.py alarm.py translation.py
 	$(GETTEXT)/bin/xgettext -L python -o $@ $^
 
 %.mo: %.po
 	$(GETTEXT)/bin/msgfmt -o $@ $<
 
 clean:
-	rm -rf alarmclock/__pycache__ $(LOCALE:.po=.mo)
+	rm -rf __pycache__ $(LOCALE:.po=.mo)

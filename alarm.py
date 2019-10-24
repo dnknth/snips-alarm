@@ -7,7 +7,7 @@ import threading
 import time
 from pydub import AudioSegment
 from tempfile import SpooledTemporaryFile
-from . translation import _, say_time, truncate_datetime
+from translation import _, say_time, truncate_datetime
 from uuid import uuid4
 import wave
 

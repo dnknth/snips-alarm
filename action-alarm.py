@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-from alarmclock.alarmclock import AlarmClock, SnipsError
-from alarmclock.translation import _
+from alarmclock import AlarmClock, SnipsError
+from translation import _
 import logging
 from snips_skill import Client
 

@@ -1,6 +1,5 @@
 from datetime import datetime
-import gettext, os
-import locale
+import gettext, locale, os
 
 
 TRANSLATION = gettext.translation( 'messages',
