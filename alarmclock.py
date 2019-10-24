@@ -212,7 +212,7 @@ class AlarmClock( MultiRoomConfig):
             default_room=default_room) for alarm in alarms ]
         if len( parts) == 1: return parts[0]
         return _('{room} {first_items} and {last_item}').format(
-            room=self.get_room_name( list( sites)[0].site.siteid) if len( sites) == 1 else '',
+            room=self.get_room_name( sites.pop()) if len( sites) == 1 else '',
             first_items=', '.join( parts[:-1]),
             last_item=parts[-1])
         

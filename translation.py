@@ -78,7 +78,7 @@ def humanize( time, only_days=False):
 
     return _("on {weekday}, the {day}. of {month}").format(
                 weekday=alarm_weekday, day=time.day,
-                month=MONTH_NAMES[time.month + 1])
+                month=MONTH_NAMES[time.month - 1])
 
 
 if __name__ == '__main__': # Test code
