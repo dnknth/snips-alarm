@@ -1,16 +1,55 @@
 # -*- coding: utf-8 -*-
 
 import configparser
-import datetime
+from datetime import date, datetime, time, timedelta
 import logging
+from spoken_time import spoken_time
+from snips_skill.multi_room import MultiRoomConfig, SnipsError
 
 from alarm import AlarmControl
-from translation import _, ngettext, humanize, say_time, truncate_datetime
-
-from snips_skill.multi_room import MultiRoomConfig, SnipsError
+from i18n import _, ngettext
 
 
 NO_CLUE = SnipsError( _("Sorry, I did not understand you."))
+
+
+def truncate( dt, precision=60):
+    'Reduce a time stamp to given precision in seconds and remove time zone info'
+    
+    return datetime.combine( dt.date(),
+        time( dt.hour, dt.minute, dt.second // precision * precision))
+
+
+def weekday_name( dt):
+    return locale.nl_langinfo( locale.DAY_1 + (dt.weekday() + 1) % 7)
+
+
+def month_name( dt):
+    return locale.nl_langinfo( locale.MON_1 + dt.month - 1)
+
+
+def format_date( dt):
+    "Describe the time span to a given date in human-understandable words"
+
+    if type( dt) is datetime: dt = dt.date()
+    delta = dt - date.today()
+    
+    if delta.days == -2:
+        return _("day before yesterday").format( days=-delta.days)
+    if delta.days == -1: return _("yesterday")
+    
+    if delta.days == 0: return _("today")
+    if delta.days == 1: return _("tomorrow")
+    if delta.days == 2: return _("the day after tomorrow")
+    
+    if dt.weekday() + delta.days <= 7: return weekday_name( dt)
+    if dt.weekday() + delta.days < 14:
+        return _("{weekday} next week").format( weekday=weekday_name( dt))
+
+    return _("on {weekday}, the {day} of {month}").format(
+            day=num2words( dt.day, lang=get_language(), to='ordinal'),
+            month=locale.nl_langinfo( locale.MON_1 + dt.month - 1),
+            weekday=weekday_name( dt))
 
 
 class AlarmClock( MultiRoomConfig):
@@ -31,12 +70,10 @@ class AlarmClock( MultiRoomConfig):
 
         alarm_site_id = self.get_site_id( msg.payload) or msg.payload.site_id
         room = self.get_room_name( alarm_site_id, msg.payload.site_id)
-                    
-        # remove the time zone and some numbers from time string
-        alarm_time = truncate_datetime( msg.payload.slot_values['time'].value)
+        alarm_time = truncate( msg.payload.slot_values['time'].value)
 
-        now = truncate_datetime()
-        if (alarm_time - now).days < 0:  # if date is in the past
+        now = truncate( datetime.now())
+        if alarm_time <= now:
             return  _("This time is in the past.")
         elif (alarm_time - now).seconds < 60:
             return _("This alarm would ring now.")
@@ -49,8 +86,8 @@ class AlarmClock( MultiRoomConfig):
         if alert: text = _("The alert will start {room} {day} at {time}.")
         
         return text.format(
-            day=humanize( alarm_time),
-            time=say_time( alarm_time),
+            day=format_date( alarm_time),
+            time=spoken_time( alarm_time),
             room=room)
 
 
@@ -72,26 +109,30 @@ class AlarmClock( MultiRoomConfig):
 
     def get_next_alarm( self, client, userdata, msg):
         
-        site_id = self.get_site_id( msg.payload) or msg.payload.site_id
-        alarms = [ a for a in self.alarmctl.get_alarms() if a.site.siteid == site_id ]
+        alarms = self.alarmctl.get_alarms()
+        site_id = self.get_site_id( msg.payload)
+        if site_id: alarms = filter( lambda a: a.site.siteid == site_id)
+        alarms = list( alarms)
 
         if not alarms: return _("There is no alarm.")
+        alarm = alarms[0]
         
-        delta = alarms[0].datetime - datetime.datetime.now()
-        if delta.total_seconds() // 60 <= 15:
-            text = _("The next alarm {room} starts {offset}.")
-        elif delta.total_seconds() // 60 <= 60:
-            text = _("The next alarm {room} starts {offset} at {time}.")
+        delta = alarms[0].datetime - datetime.now()
+        minutes = int( delta.total_seconds() // 60)
+        if minutes <= 15:
+            text = _("The next alarm {room} starts in {minutes} minutes.")
+        elif minutes <= 60:
+            text = _("The next alarm {room} starts in {minutes} minutes at {time}.")
         elif delta.days == 0:
             text = _("The next alarm {room} starts at {time}.")
         else:
             text = _("The next alarm {room} starts {day} at {time}.")
 
-        room = self.get_room_slot( msg.payload, default_name=_('in this room'))
-        return text.format( room=room,
-            offset=humanize( alarms[0].datetime),
-            day=humanize( alarms[0].datetime, only_days=True),
-            time=say_time( alarms[0].datetime))
+        room = self.get_room_name( alarm.site.siteid, msg.payload.site_id,
+            default_name=_('in this room'))
+        return text.format( room=room, minutes=minutes,
+            day=format_date( alarm.datetime),
+            time=spoken_time( alarm.datetime))
 
 
     def get_missed_alarms( self, client, userdata, msg):
@@ -112,9 +153,9 @@ class AlarmClock( MultiRoomConfig):
 
     def find_deleteable( self, client, userdata, msg):
         """
-        Called when the user want to delete multiple alarms.
-        If the user said a room and/or date the alarms with these properties will be deleted.
-        Otherwise all alarms will be deleted.
+            Called when the user wants to delete multiple alarms.
+            If the user said a room and/or date the alarms with these properties will be deleted.
+            Otherwise all alarms will be deleted.
         """
         
         alarms = self.find_alarms( msg.payload)
@@ -124,9 +165,25 @@ class AlarmClock( MultiRoomConfig):
         return alarms, ngettext(
             "Do you really want to delete the alarm {day} at {time} {room}?",
             "There are {num} alarms. Are you sure?", len( alarms)).format(
-                day=humanize( alarms[0].datetime, only_days=True),
-                time=say_time( alarms[0].datetime),
+                day=format_date( alarms[0].datetime),
+                time=spoken_time( alarms[0].datetime),
                 room=room, num=len( alarms))
+
+
+    def confirm_delete( self, client, userdata, msg):
+        "Delete alarms if the user confirmed it."
+        
+        if msg.payload.custom_data:
+            answer = msg.payload.slot_values.get( 'answer')
+            # Custom value is already translated
+            if not answer or answer.value != "yes": return
+            
+            self.alarmctl.delete_alarms(
+                filter( lambda a: a.uuid in msg.payload.custom_data,
+                    self.alarmctl.get_alarms()))
+            if msg.payload.site_id in self.alarmctl.temp_memory:
+                del self.alarmctl.temp_memory[msg.payload.site_id]
+            return _("Done.")
 
 
     def answer_alarm( self, client, userdata, msg): # TODO test this
@@ -148,7 +205,7 @@ class AlarmClock( MultiRoomConfig):
                     duration = msg.payload.slot_values['duration'].minutes
         
             dtobj_next = self.alarmctl.temp_memory[msg.payload.site_id] \
-                + datetime.timedelta( minutes=duration)
+                + timedelta( minutes=duration)
             self.alarmctl.add_alarm( dtobj_next, msg.payload.site_id)
             return _("I will wake you in {min} minutes.").format( min=duration)
 
@@ -166,8 +223,8 @@ class AlarmClock( MultiRoomConfig):
 
         if 'time' in payload.slots:
             if payload.slot_values['time'].kind == "InstantTime":
-                now = truncate_datetime()
-                alarm_time = truncate_datetime( payload.slot_values['time'].value)
+                now = truncate( datetime.now())
+                alarm_time = truncate( payload.slot_values['time'].value)
                 
                 if payload.slot_values['time'].grain in ("Hour", "Minute"):
                     if not missed and (alarm_time - now).days < 0:
@@ -175,15 +232,14 @@ class AlarmClock( MultiRoomConfig):
                     alarms = filter( lambda a: a.datetime == alarm_time, alarms)
 
                 else:
-                    alarm_date = alarm_time.date()
-                    if (alarm_date - now.date()).days < 0:
+                    if (alarm_time - now).days < 0:
                         raise SnipsError( _("This date is in the past."))
-                    alarms = filter( lambda a: a.datetime.date() == alarm_date, alarms)
+                    alarms = filter( lambda a: a.datetime.date() == alarm_time.date(), alarms)
             
             elif payload.slot_values['time'].kind == "TimeInterval":
                 time_from, time_to = payload.slot_values['time'].value
-                time_from = truncate_datetime( time_from) if time_from else None
-                time_to = truncate_datetime( time_to) if time_to else None
+                time_from = truncate( time_from) if time_from else None
+                time_to = truncate( time_to) if time_to else None
                 
                 if not time_from and time_to:
                     alarms = filter( lambda a: a.datetime <= time_to, alarms)
@@ -202,7 +258,7 @@ class AlarmClock( MultiRoomConfig):
         return list( alarms)
 
 
-    def say_alarms( self, alarms, siteid, default_room=_('here')):
+    def say_alarms( self, alarms, siteid, default_room=_('in this room')):
         if not alarms: return ''
         default_name = _('here') if len( alarms) > 1 else ''
         sites = set( alarm.site.siteid for alarm in alarms)
@@ -218,7 +274,7 @@ class AlarmClock( MultiRoomConfig):
         
     def say_alarm( self, alarm, siteid, with_room=False, default_room=''):
         return _("{room} {day} at {time}").format(
-            day=humanize( alarm.datetime, only_days=True),
-            time=say_time( alarm.datetime),
+            day=format_date( alarm.datetime),
+            time=spoken_time( alarm.datetime),
             room=(self.get_room_name( alarm.site.siteid, siteid, default_name=default_room)
                 if with_room else ''))

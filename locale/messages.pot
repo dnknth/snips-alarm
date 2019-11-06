@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-24 20:36+0200\n"
+"POT-Creation-Date: 2019-11-06 21:13+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,223 +18,160 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: action-alarm.py:77
-msgid "Done."
-msgstr ""
-
 #: alarmclock.py:13
 msgid "Sorry, I did not understand you."
 msgstr ""
 
-#: alarmclock.py:40 alarmclock.py:175
-msgid "This time is in the past."
+#: alarmclock.py:38
+msgid "day before yesterday"
+msgstr ""
+
+#: alarmclock.py:39
+msgid "yesterday"
+msgstr ""
+
+#: alarmclock.py:41
+msgid "today"
 msgstr ""
 
 #: alarmclock.py:42
-msgid "This alarm would ring now."
+msgid "tomorrow"
 msgstr ""
 
-#: alarmclock.py:44
-msgid "alert"
+#: alarmclock.py:43
+msgid "the day after tomorrow"
 msgstr ""
 
-#: alarmclock.py:45
-msgid "to alert"
-msgstr ""
-
-#: alarmclock.py:48
+#: alarmclock.py:47
 #, python-brace-format
-msgid "The alarm will ring {room} {day} at {time}."
+msgid "{weekday} next week"
 msgstr ""
 
 #: alarmclock.py:49
 #, python-brace-format
+msgid "on {weekday}, the {day} of {month}"
+msgstr ""
+
+#: alarmclock.py:79 alarmclock.py:235
+msgid "This time is in the past."
+msgstr ""
+
+#: alarmclock.py:81
+msgid "This alarm would ring now."
+msgstr ""
+
+#: alarmclock.py:83
+msgid "alert"
+msgstr ""
+
+#: alarmclock.py:84
+msgid "to alert"
+msgstr ""
+
+#: alarmclock.py:87
+#, python-brace-format
+msgid "The alarm will ring {room} {day} at {time}."
+msgstr ""
+
+#: alarmclock.py:88
+#, python-brace-format
 msgid "The alert will start {room} {day} at {time}."
 msgstr ""
 
-#: alarmclock.py:61 alarmclock.py:79 alarmclock.py:122
+#: alarmclock.py:99 alarmclock.py:119 alarmclock.py:164
 msgid "There is no alarm."
 msgstr ""
 
-#: alarmclock.py:64
+#: alarmclock.py:102
+#, python-brace-format
+msgid "There are {num} alarms. The next three are: {alarms}."
+msgstr ""
+
+#: alarmclock.py:105
 #, python-brace-format
 msgid "There is one alarm {alarms}."
 msgid_plural "There are {num} alarms {alarms}."
 msgstr[0] ""
 msgstr[1] ""
 
-#: alarmclock.py:68
+#: alarmclock.py:125
 #, python-brace-format
-msgid "There are {num} alarms. The next three are: {alarms}."
+msgid "The next alarm {room} starts in {minutes} minutes."
 msgstr ""
 
-#: alarmclock.py:83
+#: alarmclock.py:127
 #, python-brace-format
-msgid "The next alarm {room} starts {offset}."
+msgid "The next alarm {room} starts in {minutes} minutes at {time}."
 msgstr ""
 
-#: alarmclock.py:85
-#, python-brace-format
-msgid "The next alarm {room} starts {offset} at {time}."
-msgstr ""
-
-#: alarmclock.py:87
+#: alarmclock.py:129
 #, python-brace-format
 msgid "The next alarm {room} starts at {time}."
 msgstr ""
 
-#: alarmclock.py:89
+#: alarmclock.py:131
 #, python-brace-format
 msgid "The next alarm {room} starts {day} at {time}."
 msgstr ""
 
-#: alarmclock.py:91 alarmclock.py:124
+#: alarmclock.py:134 alarmclock.py:166 alarmclock.py:265
 msgid "in this room"
 msgstr ""
 
-#: alarmclock.py:101
+#: alarmclock.py:143
 msgid "You missed no alarm."
 msgstr ""
 
-#: alarmclock.py:104
+#: alarmclock.py:146
 #, python-brace-format
 msgid "You missed one alarm {alarms}."
 msgid_plural "You missed {num} alarms {alarms} {filler}."
 msgstr[0] ""
 msgstr[1] ""
 
-#: alarmclock.py:111
+#: alarmclock.py:153
 msgid "and more"
 msgstr ""
 
-#: alarmclock.py:126
+#: alarmclock.py:168
 #, python-brace-format
 msgid "Do you really want to delete the alarm {day} at {time} {room}?"
 msgid_plural "There are {num} alarms. Are you sure?"
 msgstr[0] ""
 msgstr[1] ""
 
-#: alarmclock.py:154 alarmclock.py:157
+#: alarmclock.py:190
+msgid "Done."
+msgstr ""
+
+#: alarmclock.py:214 alarmclock.py:217
 #, python-brace-format
 msgid "I will wake you in {min} minutes."
 msgstr ""
 
-#: alarmclock.py:181
+#: alarmclock.py:240
 msgid "This date is in the past."
 msgstr ""
 
-#: alarmclock.py:206 alarmclock.py:208
+#: alarmclock.py:267
 msgid "here"
 msgstr ""
 
-#: alarmclock.py:214
+#: alarmclock.py:273
 #, python-brace-format
 msgid "{room} {first_items} and {last_item}"
 msgstr ""
 
-#: alarmclock.py:221
+#: alarmclock.py:280
 #, python-brace-format
 msgid "{room} {day} at {time}"
 msgstr ""
 
-#: alarm.py:251
+#: alarm.py:255
 msgid "What should the alarm do?"
 msgstr ""
 
-#: alarm.py:255
+#: alarm.py:259
 #, python-brace-format
 msgid "Alarm is now ended. It is {time}."
-msgstr ""
-
-#: translation.py:25
-#, python-brace-format
-msgid "one o'clock"
-msgid_plural "{hour} o'clock"
-msgstr[0] ""
-msgstr[1] ""
-
-#: translation.py:27
-#, python-brace-format
-msgid "{min} minute"
-msgid_plural "{min} minutes"
-msgstr[0] ""
-msgstr[1] ""
-
-#: translation.py:32
-#, python-brace-format
-msgid "{minute} past {hour}"
-msgstr ""
-
-#: translation.py:52
-#, python-brace-format
-msgid "one hour"
-msgid_plural "one {hours}"
-msgstr[0] ""
-msgstr[1] ""
-
-#: translation.py:54
-#, python-brace-format
-msgid "one minute"
-msgid_plural "{min} minutes"
-msgstr[0] ""
-msgstr[1] ""
-
-#: translation.py:57
-msgid "now"
-msgstr ""
-
-#: translation.py:59
-#, python-brace-format
-msgid "in {minutes}"
-msgstr ""
-
-#: translation.py:61
-#, python-brace-format
-msgid "in {hours}"
-msgstr ""
-
-#: translation.py:62
-#, python-brace-format
-msgid "in {hours} and {minutes}"
-msgstr ""
-
-#: translation.py:66
-#, python-brace-format
-msgid "{day_offset} days ago"
-msgstr ""
-
-#: translation.py:69
-#, python-brace-format
-msgid "{hours} hours ago"
-msgstr ""
-
-#: translation.py:71
-msgid "yesterday"
-msgstr ""
-
-#: translation.py:73
-msgid "today"
-msgstr ""
-
-#: translation.py:74
-msgid "tomorrow"
-msgstr ""
-
-#: translation.py:75
-msgid "the day after tomorrow"
-msgstr ""
-
-#: translation.py:79
-#, python-brace-format
-msgid "on {weekday}"
-msgstr ""
-
-#: translation.py:81
-#, python-brace-format
-msgid "on {weekday} next week"
-msgstr ""
-
-#: translation.py:85
-#, python-brace-format
-msgid "on {weekday}, the {day}. of {month}"
 msgstr ""

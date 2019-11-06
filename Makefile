@@ -6,7 +6,7 @@ LOCALE = locale/de/LC_MESSAGES/messages.po
 
 
 run: .venv3 $(LOCALE:.po=.mo) $(POT)
-	PYTHONPATH=$(PWD)/../snips-skill $(BIN)/python3 action-alarm.py -v3
+	PYTHONPATH=$(PWD)/../snips-skill:$(PWD)/../spoken_time $(BIN)/python3 action-alarm.py -v3
 
 .venv3: requirements.txt
 	[ -d $@ ] || python3 -m venv $@
@@ -15,7 +15,7 @@ run: .venv3 $(LOCALE:.po=.mo) $(POT)
 
 messages: $(POT)
 
-$(POT): action-alarm.py alarmclock.py alarm.py translation.py
+$(POT): action-alarm.py alarmclock.py alarm.py
 	$(GETTEXT)/bin/xgettext -L python -o $@ $^
 
 %.mo: %.po

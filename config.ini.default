@@ -28,9 +28,9 @@ snooze_default_duration = 5
 snooze_max_duration = 15
 snooze_challenge = off
 
-# Example room section follows.
+# Example room section.
 # Unless you wish to control rooms by name,
-# no room sections are needed.
+# no such sections are needed.
 #
 # Only 'site_id' is required in room sections,
 # but any option from the [DEFAULT] section

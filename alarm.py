@@ -1,15 +1,17 @@
-from datetime import datetime as dt
+from datetime import datetime as dt, time
 import functools
 import json
 import logging
 import os.path
-import threading
-import time
 from pydub import AudioSegment
+import threading
 from tempfile import SpooledTemporaryFile
-from translation import _, say_time, truncate_datetime
+from time import sleep
+from spoken_time import spoken_time
 from uuid import uuid4
 import wave
+
+from i18n import _
 
 
 def edit_volume( volume, wav_path):
@@ -131,12 +133,14 @@ class AlarmControl:
         """
 
         while True:
-            now = truncate_datetime( None, self.TICKS)
+            now = dt.now()
+            now = dt.combine( now.date(),
+                time( now.hour, now.minute, now.second // self.TICKS * self.TICKS))
             for alarm in self.alarms:
                 if not alarm.passed and alarm.datetime == now:
                     alarm.passed = True
                     self.start_ringing( alarm, now)
-            time.sleep( self.TICKS)
+            sleep( self.TICKS)
 
 
     def start_ringing( self, alarm, now):
@@ -252,7 +256,7 @@ class AlarmControl:
 
         else:
             self.mqtt_client.end_session( payload['sessionId'],
-                _("Alarm is now ended. It is {time}.").format( time=say_time()))
+                _("Alarm is now ended. It is {time}.").format( time=spoken_time()))
 
 
     def on_session_ended( self, client, userdata, msg):
