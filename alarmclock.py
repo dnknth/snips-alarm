@@ -4,7 +4,7 @@ import configparser
 from datetime import date, datetime, time, timedelta
 import logging
 from spoken_time import spoken_time
-from snips_skill.multi_room import MultiRoomConfig, SnipsError
+from snips_skill import MultiRoomConfig, SnipsError
 
 from alarm import AlarmControl
 from i18n import _, ngettext
@@ -151,23 +151,27 @@ class AlarmClock( MultiRoomConfig):
                 filler=_('and more') if len( alarms) > 2 else '')
 
 
-    def find_deleteable( self, client, userdata, msg):
+    def delete_alarms( self, client, userdata, msg):
         """
             Called when the user wants to delete multiple alarms.
             If the user said a room and/or date the alarms with these properties will be deleted.
-            Otherwise all alarms will be deleted.
+            Otherwise all alarms will be deleted after confirmation.
         """
-        
+
+        # delete alarms with the given properties
         alarms = self.find_alarms( msg.payload)
         if not alarms: raise SnipsError( _("There is no alarm."))
         
         room = self.get_room_slot( msg.payload, default_name=_('in this room'))
-        return alarms, ngettext(
-            "Do you really want to delete the alarm {day} at {time} {room}?",
-            "There are {num} alarms. Are you sure?", len( alarms)).format(
-                day=format_date( alarms[0].datetime),
-                time=spoken_time( alarms[0].datetime),
-                room=room, num=len( alarms))
+        client.continue_session( msg.payload.session_id,
+            ngettext( "Do you really want to delete the alarm {day} at {time} {room}?",
+                "There are {num} alarms. Are you sure?", len( alarms)).format(
+                    day=format_date( alarms[0].datetime),
+                    time=spoken_time( alarms[0].datetime),
+                    room=room, num=len( alarms)),
+            ['dnknth:confirmAlarm'], # FIXME hard-coded intent
+            slot='answer',
+            custom_data=[ a.uuid for a in alarms ])
 
 
     def confirm_delete( self, client, userdata, msg):
