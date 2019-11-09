@@ -1,5 +1,5 @@
 from datetime import datetime as dt, time
-import functools
+from functools import partial
 import json
 import logging
 import os.path
@@ -153,7 +153,7 @@ class AlarmControl:
         alarm.site.playback_alarm = alarm
         self.ring( alarm.site)
         alarm.site.timeout_thread = threading.Timer(
-            alarm.site.playback_timeout, functools.partial( self.timeout_reached, alarm.site))
+            alarm.site.playback_timeout, partial( self.timeout_reached, alarm.site))
         alarm.site.timeout_thread.start()
 
 
@@ -192,8 +192,8 @@ class AlarmControl:
 
     def on_message_playfinished( self, client, userdata, msg):
         """
-        Called when ringtone was played on specific site. If self.playback_dict[siteId] is True, the
-        ringtone is played again.
+        Called when ringtone was played on specific site.
+        If self.playback_dict[siteId] is True, the ringtone is played again.
         :param client: MQTT client object (from paho)
         :param userdata: MQTT userdata (from paho)
         :param msg: MQTT message object (from paho)
@@ -209,8 +209,8 @@ class AlarmControl:
 
     def on_message_hotword( self, client, userdata, msg):
         """
-        Called when hotword is recognized while alarm is ringing. If siteId matches the one of the
-        current ringing alarm, it is stopped.
+        Called when hotword is recognized while alarm is ringing.
+        If siteId matches the one of the current ringing alarm, it is stopped.
         :param client: MQTT client object (from paho)
         :param userdata: MQTT userdata (from paho)
         :param msg: MQTT message object (from paho)
@@ -231,7 +231,8 @@ class AlarmControl:
 
     def on_message_sessionstarted( self, client, userdata, msg):
         """
-        Called when Snips started a new session. Publishes a message to end this immediately and Snips
+        Called when Snips started a new session.
+        Publishes a message to end this immediately and Snips
         will notify the user that the alarm has ended.
         :param client: MQTT client object (from paho)
         :param userdata: MQTT userdata (from paho)

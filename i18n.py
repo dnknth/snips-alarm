@@ -10,8 +10,5 @@ TRANSLATION = gettext.translation( 'messages',
 _  = TRANSLATION.gettext
 ngettext = TRANSLATION.ngettext
 
-# Reset locale for day & month names
-locale.setlocale( locale.LC_ALL, LANGUAGE)
-
 snips_skill.use_language( LANGUAGE)
 spoken_time.use_language( LANGUAGE)

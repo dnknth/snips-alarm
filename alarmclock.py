@@ -3,7 +3,7 @@
 import configparser
 from datetime import date, datetime, time, timedelta
 import logging
-from spoken_time import spoken_time
+from spoken_time import spoken_date, spoken_time
 from snips_skill import MultiRoomConfig, SnipsError
 
 from alarm import AlarmControl
@@ -20,39 +20,8 @@ def truncate( dt, precision=60):
         time( dt.hour, dt.minute, dt.second // precision * precision))
 
 
-def weekday_name( dt):
-    return locale.nl_langinfo( locale.DAY_1 + (dt.weekday() + 1) % 7)
-
-
-def month_name( dt):
-    return locale.nl_langinfo( locale.MON_1 + dt.month - 1)
-
-
-def format_date( dt):
-    "Describe the time span to a given date in human-understandable words"
-
-    if type( dt) is datetime: dt = dt.date()
-    delta = dt - date.today()
-    
-    if delta.days == -2:
-        return _("day before yesterday").format( days=-delta.days)
-    if delta.days == -1: return _("yesterday")
-    
-    if delta.days == 0: return _("today")
-    if delta.days == 1: return _("tomorrow")
-    if delta.days == 2: return _("the day after tomorrow")
-    
-    if dt.weekday() + delta.days <= 7: return weekday_name( dt)
-    if dt.weekday() + delta.days < 14:
-        return _("{weekday} next week").format( weekday=weekday_name( dt))
-
-    return _("on {weekday}, the {day} of {month}").format(
-            day=num2words( dt.day, lang=get_language(), to='ordinal'),
-            month=locale.nl_langinfo( locale.MON_1 + dt.month - 1),
-            weekday=weekday_name( dt))
-
-
 class AlarmClock( MultiRoomConfig):
+    "Voice-controlled alarm clock"
     
     def __init__( self, mqtt_client, configuration_file='config.ini'):
         super().__init__( configuration_file)
@@ -86,7 +55,7 @@ class AlarmClock( MultiRoomConfig):
         if alert: text = _("The alert will start {room} {day} at {time}.")
         
         return text.format(
-            day=format_date( alarm_time),
+            day=spoken_date( alarm_time),
             time=spoken_time( alarm_time),
             room=room)
 
@@ -131,7 +100,7 @@ class AlarmClock( MultiRoomConfig):
         room = self.get_room_name( alarm.site.siteid, msg.payload.site_id,
             default_name=_('in this room'))
         return text.format( room=room, minutes=minutes,
-            day=format_date( alarm.datetime),
+            day=spoken_date( alarm.datetime),
             time=spoken_time( alarm.datetime))
 
 
@@ -166,7 +135,7 @@ class AlarmClock( MultiRoomConfig):
         client.continue_session( msg.payload.session_id,
             ngettext( "Do you really want to delete the alarm {day} at {time} {room}?",
                 "There are {num} alarms. Are you sure?", len( alarms)).format(
-                    day=format_date( alarms[0].datetime),
+                    day=spoken_date( alarms[0].datetime),
                     time=spoken_time( alarms[0].datetime),
                     room=room, num=len( alarms)),
             ['dnknth:confirmAlarm'], # FIXME hard-coded intent
@@ -278,7 +247,7 @@ class AlarmClock( MultiRoomConfig):
         
     def say_alarm( self, alarm, siteid, with_room=False, default_room=''):
         return _("{room} {day} at {time}").format(
-            day=format_date( alarm.datetime),
+            day=spoken_date( alarm.datetime),
             time=spoken_time( alarm.datetime),
             room=(self.get_room_name( alarm.site.siteid, siteid, default_name=default_room)
                 if with_room else ''))
