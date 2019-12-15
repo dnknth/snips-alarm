@@ -32,4 +32,4 @@ MQTT_CLIENT.on_intent( PREFIX + 'deleteAlarms')(
 if __name__ == '__main__':
     ALARMCLOCK.log.setLevel( MQTT_CLIENT.LOG_LEVEL)
     ALARMCLOCK.alarmctl.log.setLevel( MQTT_CLIENT.LOG_LEVEL)
-    MQTT_CLIENT.run()
+    MQTT_CLIENT.connect().loop_forever()
