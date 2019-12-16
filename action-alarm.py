@@ -16,12 +16,12 @@ def on( intent, handler):
         end_session( log_intent( handler)))
 
 
-on( 'newAlarm', ALARMCLOCK.new_alarm)
-on( 'getAlarms', ALARMCLOCK.get_alarms)
-on( 'getNextAlarm', ALARMCLOCK.get_next_alarm)
+on( 'newAlarm',        ALARMCLOCK.new_alarm)
+on( 'getAlarms',       ALARMCLOCK.get_alarms)
+on( 'getNextAlarm',    ALARMCLOCK.get_next_alarm)
 on( 'getMissedAlarms', ALARMCLOCK.get_missed_alarms)
-on( 'answerAlarm', ALARMCLOCK.answer_alarm)
-on( 'confirmAlarm', ALARMCLOCK.confirm_delete)
+on( 'answerAlarm',     ALARMCLOCK.answer_alarm)
+on( 'confirmAlarm',    ALARMCLOCK.confirm_delete)
 
 # Special case: This intent continues the session with custom data.
 MQTT_CLIENT.on_intent( PREFIX + 'deleteAlarms')(
@@ -30,6 +30,6 @@ MQTT_CLIENT.on_intent( PREFIX + 'deleteAlarms')(
 
 # All intents are registered, let's go!
 if __name__ == '__main__':
-    ALARMCLOCK.log.setLevel( MQTT_CLIENT.LOG_LEVEL)
-    ALARMCLOCK.alarmctl.log.setLevel( MQTT_CLIENT.LOG_LEVEL)
+    ALARMCLOCK.log.setLevel( MQTT_CLIENT.log_level)
+    ALARMCLOCK.alarmctl.log.setLevel( MQTT_CLIENT.log_level)
     MQTT_CLIENT.connect().loop_forever()
