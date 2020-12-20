@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from alarmclock import AlarmClock
-from snips_skill import end_on_error, end_session, log_intent, Skill
+from snips_skill import *
 
 
 PREFIX = "dnknth:"
@@ -12,7 +12,7 @@ ALARMCLOCK = AlarmClock( MQTT_CLIENT)
 def on( intent, handler):
     'Register an intent that ends the session'
     
-    MQTT_CLIENT.on_intent( PREFIX + intent)(
+    on_intent( PREFIX + intent)(
         end_session( log_intent( handler)))
 
 
@@ -24,7 +24,7 @@ on( 'answerAlarm',     ALARMCLOCK.answer_alarm)
 on( 'confirmAlarm',    ALARMCLOCK.confirm_delete)
 
 # Special case: This intent continues the session with custom data.
-MQTT_CLIENT.on_intent( PREFIX + 'deleteAlarms')(
+on_intent( PREFIX + 'deleteAlarms')(
     end_on_error( log_intent( ALARMCLOCK.delete_alarms)))
 
 
@@ -32,4 +32,5 @@ MQTT_CLIENT.on_intent( PREFIX + 'deleteAlarms')(
 if __name__ == '__main__':
     ALARMCLOCK.log.setLevel( MQTT_CLIENT.log_level)
     ALARMCLOCK.alarmctl.log.setLevel( MQTT_CLIENT.log_level)
-    MQTT_CLIENT.connect().loop_forever()
+    with MQTT_CLIENT.connect() as alarm:
+        alarm.loop_forever()

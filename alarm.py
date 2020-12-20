@@ -1,17 +1,22 @@
 from datetime import datetime as dt, time
 from functools import partial
-import json
-import logging
-import os.path
+import json, gettext, locale, logging, os, threading, wave
 from pydub import AudioSegment
-import threading
 from tempfile import SpooledTemporaryFile
 from time import sleep
 from spoken_time import spoken_time
+from snips_skill import *
 from uuid import uuid4
-import wave
 
-from i18n import _
+
+# Install translations
+_language, _encoding = locale.getlocale()
+_translation = gettext.translation( 'messages', 
+    languages=[_language], fallback=True,
+    localedir=os.path.join( os.path.dirname( __file__), 'locale'))
+_  = _translation.gettext
+ngettext = _translation.ngettext
+del _language, _encoding, _translation
 
 
 def edit_volume( volume, wav_path):
@@ -97,6 +102,8 @@ class AlarmControl:
         if os.path.isfile( self.SAVED_ALARMS_PATH):
             with open( self.SAVED_ALARMS_PATH, "r") as f:
                 for alarm_dict in json.load( f):
+                    if alarm_dict['site'] not in self.sites:
+                        self.add_site( alarm_dict['site'])
                     alarm_dict['site'] = self.sites[ alarm_dict['site']]
                     alarm = Alarm( **alarm_dict)
                     if not alarm.missed:
@@ -110,8 +117,8 @@ class AlarmControl:
         self.mqtt_client.subscribe( [
             ('hermes/dialogueManager/sessionStarted', 1),
             ('hermes/hotword/#', 1) ])
-        self.mqtt_client.on_session_ended( self.on_session_ended)
-        self.mqtt_client.topic( 'hermes/hotword/+/detected')( self.on_message_hotword)
+        on_session_ended( self.on_session_ended)
+        mqtt.topic( 'hermes/hotword/+/detected')( self.on_message_hotword)
 
 
     def add_site( self, siteid):

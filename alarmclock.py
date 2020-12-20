@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
 
+from alarm import AlarmControl, ngettext, _
 import configparser
 from datetime import date, datetime, time, timedelta
 import logging
-from spoken_time import spoken_date, spoken_time
+from spoken_time import *
 from snips_skill import MultiRoomConfig, SnipsError
-
-from alarm import AlarmControl
-from i18n import _, ngettext
 
 
 NO_CLUE = SnipsError( _("Sorry, I did not understand you."))
@@ -19,6 +17,8 @@ def truncate( dt, precision=60):
     return datetime.combine( dt.date(),
         time( dt.hour, dt.minute, dt.second // precision * precision))
 
+def spoken_date( dt):
+    return relative_spoken_date( dt) or absolute_spoken_date( dt)
 
 class AlarmClock( MultiRoomConfig):
     "Voice-controlled alarm clock"
