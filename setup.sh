@@ -14,5 +14,5 @@ else
     exit 1
 fi
 
-# Create empty config.ini if it does not exist.
-[ -f config.ini ] || touch config.ini
+# Create config.ini if it does not exist.
+[ -f config.ini ] || cp config.ini.default config.ini

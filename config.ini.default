@@ -1,32 +1,24 @@
-# Settings for the alarm skill.
+# Settings for a multi-room skill.
 #
 # The smallest possible configuration looks like this:
 #   [DEFAULT]
-#   site_id = default
 #
-# where 'default' is the ID of a Snips audio server,
-# as given in the 'bind' setting in /etc/snips.toml.
+# For a multi-room setup, list each room in it's own section.
 #
-# For a multi-room setup, list each site in it's own
-# section with a different site_id.
-#
-# Settings in the [DEFAULT] section apply to all sites,
+# Settings in the [DEFAULT] section apply to all rooms,
 # unless overridden in room sections.
 # 
 # All settings are optional.
 # If absent, the values listed below will be used.
-#
 
 [DEFAULT]
 playback_alarm_wav = resources/alarm-sound.wav
 playback_alert_wav = resources/red-alert.wav
-playback_volume = 60
+playback_volume = 40
 playback_timeout = 30
 
 snooze_state = off
 snooze_default_duration = 5
-snooze_max_duration = 15
-snooze_challenge = off
 
 # Example room section.
 # Unless you wish to control rooms by name,
@@ -36,5 +28,5 @@ snooze_challenge = off
 # but any option from the [DEFAULT] section
 # can also appear here.
 
-[bedroom]
-site_id = default
+# [bedroom]
+# site_id = default

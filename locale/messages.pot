@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-09 01:09+0100\n"
+"POT-Creation-Date: 2021-01-07 09:53+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,130 +18,126 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: alarmclock.py:13
-msgid "Sorry, I did not understand you."
+#: action-alarmclock.py:24
+msgid "At which time?"
 msgstr ""
 
-#: alarmclock.py:46 alarmclock.py:204
+#: action-alarmclock.py:134
 msgid "This time is in the past."
 msgstr ""
 
-#: alarmclock.py:48
+#: action-alarmclock.py:138
 msgid "This alarm would ring now."
 msgstr ""
 
-#: alarmclock.py:50
+#: action-alarmclock.py:140
 msgid "alert"
 msgstr ""
 
-#: alarmclock.py:51
+#: action-alarmclock.py:141
 msgid "to alert"
 msgstr ""
 
-#: alarmclock.py:54
+#: action-alarmclock.py:144
 #, python-brace-format
 msgid "The alarm will ring {room} {day} at {time}."
 msgstr ""
 
-#: alarmclock.py:55
+#: action-alarmclock.py:145
 #, python-brace-format
 msgid "The alert will start {room} {day} at {time}."
 msgstr ""
 
-#: alarmclock.py:66 alarmclock.py:86 alarmclock.py:132
+#: action-alarmclock.py:156 action-alarmclock.py:176 action-alarmclock.py:221
 msgid "There is no alarm."
 msgstr ""
 
-#: alarmclock.py:69
+#: action-alarmclock.py:159
 #, python-brace-format
 msgid "There are {num} alarms. The next three are: {alarms}."
 msgstr ""
 
-#: alarmclock.py:72
+#: action-alarmclock.py:162
 #, python-brace-format
-msgid "There is one alarm {alarms}."
-msgid_plural "There are {num} alarms {alarms}."
+msgid "There is one alarm, {alarms}."
+msgid_plural "There are {num} alarms, {alarms}."
 msgstr[0] ""
 msgstr[1] ""
 
-#: alarmclock.py:92
+#: action-alarmclock.py:182
 #, python-brace-format
 msgid "The next alarm {room} starts in {minutes} minutes."
 msgstr ""
 
-#: alarmclock.py:94
+#: action-alarmclock.py:184
 #, python-brace-format
 msgid "The next alarm {room} starts in {minutes} minutes at {time}."
 msgstr ""
 
-#: alarmclock.py:96
+#: action-alarmclock.py:186
 #, python-brace-format
 msgid "The next alarm {room} starts at {time}."
 msgstr ""
 
-#: alarmclock.py:98
+#: action-alarmclock.py:188
 #, python-brace-format
 msgid "The next alarm {room} starts {day} at {time}."
 msgstr ""
 
-#: alarmclock.py:101 alarmclock.py:134 alarmclock.py:234
+#: action-alarmclock.py:191 action-alarmclock.py:223 action-alarmclock.py:361
 msgid "in this room"
 msgstr ""
 
-#: alarmclock.py:110
+#: action-alarmclock.py:200
 msgid "You missed no alarm."
 msgstr ""
 
-#: alarmclock.py:113
+#: action-alarmclock.py:203
 #, python-brace-format
 msgid "You missed one alarm {alarms}."
 msgid_plural "You missed {num} alarms {alarms} {filler}."
 msgstr[0] ""
 msgstr[1] ""
 
-#: alarmclock.py:120
+#: action-alarmclock.py:210
 msgid "and more"
 msgstr ""
 
-#: alarmclock.py:136
+#: action-alarmclock.py:225
 #, python-brace-format
 msgid "Do you really want to delete the alarm {day} at {time} {room}?"
 msgid_plural "There are {num} alarms. Are you sure?"
 msgstr[0] ""
 msgstr[1] ""
 
-#: alarmclock.py:159
+#: action-alarmclock.py:244
 msgid "Done."
 msgstr ""
 
-#: alarmclock.py:183 alarmclock.py:186
+#: action-alarmclock.py:290
+msgid "What should the alarm do?"
+msgstr ""
+
+#: action-alarmclock.py:294
 #, python-brace-format
-msgid "I will wake you in {min} minutes."
+msgid "Alarm is now ended. It is {time}."
 msgstr ""
 
-#: alarmclock.py:209
-msgid "This date is in the past."
+#: action-alarmclock.py:312
+#, python-brace-format
+msgid "The alarm will ring in {minutes} minutes."
 msgstr ""
 
-#: alarmclock.py:236
+#: action-alarmclock.py:363
 msgid "here"
 msgstr ""
 
-#: alarmclock.py:242
+#: action-alarmclock.py:369
 #, python-brace-format
 msgid "{room} {first_items} and {last_item}"
 msgstr ""
 
-#: alarmclock.py:249
+#: action-alarmclock.py:381
 #, python-brace-format
 msgid "{room} {day} at {time}"
-msgstr ""
-
-#: alarm.py:256
-msgid "What should the alarm do?"
-msgstr ""
-
-#: alarm.py:260
-#, python-brace-format
-msgid "Alarm is now ended. It is {time}."
 msgstr ""
