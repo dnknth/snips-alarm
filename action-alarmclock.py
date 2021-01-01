@@ -11,7 +11,7 @@ from snips_skill import *
 
 
 # Install translations
-_, ngettext = i18n( __file__)
+_, ngettext = get_translations( __file__)
 
 
 WHICH_TIME = _('At which time?')
